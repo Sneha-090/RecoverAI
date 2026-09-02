@@ -1,21 +1,20 @@
-import hmac
 import hashlib
+import hmac
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from app.config import settings
 from app.db.session import SessionLocal
-from app.services.ingestion import fetch_and_store_payment
+from app.models.models import Action, DecisionType, ReviewStatus
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action
+from app.services.ingestion import fetch_and_store_payment
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-def verify_razorpay_signature(
-    body: bytes,
-    signature: str,
-) -> bool:
+def verify_razorpay_signature(body: bytes, signature: str) -> bool:
     expected = hmac.new(
         settings.razorpay_webhook_secret.encode("utf-8"),
         body,
@@ -45,9 +44,9 @@ async def razorpay_webhook(
         )
 
     payload = await request.json()
-
     event = payload.get("event")
 
+    # We currently process only failed-payment events.
     if event != "payment.failed":
         return {
             "status": "ignored",
@@ -72,6 +71,37 @@ async def razorpay_webhook(
 
     try:
         payment = fetch_and_store_payment(db, payment_id)
+
+        # Prevent a duplicate/re-delivered webhook from creating
+        # another recovery action for the same payment.
+        recent_action = (
+            db.query(Action)
+            .filter(
+                Action.payment_id == payment_id,
+                Action.chosen_at
+                >= datetime.utcnow() - timedelta(minutes=10),
+            )
+            .order_by(Action.chosen_at.desc())
+            .first()
+        )
+
+        if recent_action:
+            if (
+                recent_action.decision_type == DecisionType.human_review
+                and recent_action.review_status == ReviewStatus.pending
+            ):
+                return {
+                    "status": "already_processing",
+                    "payment_id": payment_id,
+                    "reason": "Existing human-review action is still pending.",
+                }
+
+            return {
+                "status": "already_processing",
+                "payment_id": payment_id,
+                "reason": "A recent recovery action already exists for this payment.",
+            }
+
         diagnosis = diagnose_and_store(db, payment)
         result = execute_action(db, payment)
 
