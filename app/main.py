@@ -1,3 +1,4 @@
+from app.api.webhooks import router as webhook_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action
 
 app = FastAPI(title="RecoverAI")
+app.include_router(webhook_router)
 
 app.add_middleware(
     CORSMiddleware,
