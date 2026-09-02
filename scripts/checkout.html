@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head><title>RecoverAI Test Checkout</title></head>
+<body>
+<h3>RecoverAI — Razorpay Test Checkout</h3>
+
+<label>Order ID (from create_order.py output):</label><br>
+<input type="text" id="orderIdInput" placeholder="order_XXXXXXXXXX" style="width:300px;"><br><br>
+
+<label>Amount in Rupees:</label><br>
+<input type="number" id="amountInput" placeholder="499" style="width:300px;"><br><br>
+
+<button id="loadBtn">Load Order</button>
+<p id="info"></p>
+
+<button id="pay" disabled>Pay Now (Test Mode)</button>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+const RAZORPAY_KEY_ID = "rzp_test_TU2MpmBcUHatw7";
+
+let currentOrderId = null;
+let currentAmountPaise = null;
+
+document.getElementById("loadBtn").onclick = function () {
+  const orderId = document.getElementById("orderIdInput").value.trim();
+  const amountRupees = parseFloat(document.getElementById("amountInput").value);
+
+  if (!orderId || !amountRupees) {
+    document.getElementById("info").innerText = "Enter both Order ID and Amount.";
+    document.getElementById("pay").disabled = true;
+    return;
+  }
+
+  currentOrderId = orderId;
+  currentAmountPaise = Math.round(amountRupees * 100);
+
+  document.getElementById("info").innerText =
+    "Loaded: " + currentOrderId + " | Rs." + amountRupees;
+  document.getElementById("pay").disabled = false;
+};
+
+document.getElementById("pay").onclick = function () {
+  var options = {
+    key: RAZORPAY_KEY_ID,
+    amount: currentAmountPaise,
+    currency: "INR",
+    order_id: currentOrderId,
+    handler: function (response) {
+      alert("payment_id: " + response.razorpay_payment_id);
+    }
+  };
+  var rzp = new Razorpay(options);
+  var rzp = new Razorpay(options);
+
+rzp.on("payment.failed", function (response) {
+  console.log("PAYMENT FAILED:", response);
+
+  const paymentId = response.error?.metadata?.payment_id || "Not provided";
+  const orderId = response.error?.metadata?.order_id || currentOrderId;
+  const errorCode = response.error?.code || "Not provided";
+  const reason = response.error?.reason || "Not provided";
+  const description = response.error?.description || "Not provided";
+
+  alert(
+    "PAYMENT FAILED\n\n" +
+    "Payment ID: " + paymentId + "\n" +
+    "Order ID: " + orderId + "\n" +
+    "Error Code: " + errorCode + "\n" +
+    "Reason: " + reason + "\n" +
+    "Description: " + description
+  );
+});
+
+
+  rzp.open();
+};
+</script>
+</body>
+</html>
