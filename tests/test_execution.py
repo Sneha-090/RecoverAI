@@ -100,7 +100,7 @@ def test_latest_human_approved_execution_wins_over_old_auto_execution(db_session
     assert result == new_payload
     assert result["order_id"] == "human_retry_order_456"
 
-    from app.models.models import Action, Payment, Outcome
+   
 
 
 def test_human_approved_retry_outcome_uses_latest_action(
@@ -156,4 +156,213 @@ def test_human_approved_retry_outcome_uses_latest_action(
     assert payment.status == "recovered"
     assert outcome is not None
     assert outcome.action_type == "retry"
+    assert outcome.observed_result == "success"
+
+def test_payment_link_success_marks_original_payment_recovered(
+    db_session,
+    monkeypatch,
+):
+    payment = Payment(
+        payment_id="pay_payment_link_success_123",
+        amount=6000,
+        status="failed",
+    )
+
+    action = Action(
+        payment_id="pay_payment_link_success_123",
+        action_type="payment_link",
+        decision_type="auto",
+    )
+
+    audit = AuditLog(
+        payment_id="pay_payment_link_success_123",
+        event_type="executed",
+        payload_json=json.dumps(
+            {
+                "type": "payment_link",
+                "payment_link_id": "plink_success_123",
+                "short_url": "https://rzp.io/rzp/success123",
+            }
+        ),
+    )
+
+    db_session.add(payment)
+    db_session.add(action)
+    db_session.add(audit)
+    db_session.commit()
+
+    def fake_payment_link_fetch(payment_link_id):
+        assert payment_link_id == "plink_success_123"
+        return {
+            "id": "plink_success_123",
+            "status": "paid",
+        }
+
+    monkeypatch.setattr(
+        "app.services.execution.client.payment_link.fetch",
+        fake_payment_link_fetch,
+    )
+
+    result = observe_outcome(
+        db_session,
+        payment,
+    )
+
+    db_session.refresh(payment)
+
+    outcome = (
+        db_session.query(Outcome)
+        .filter(
+            Outcome.payment_id == "pay_payment_link_success_123"
+        )
+        .first()
+    )
+
+    assert result["status"] == "recovered"
+    assert payment.status == "recovered"
+    assert outcome is not None
+    assert outcome.action_type == "payment_link"
+    assert outcome.observed_result == "success"
+def test_payment_link_failed_does_not_mark_payment_recovered(
+    db_session,
+    monkeypatch,
+):
+    payment = Payment(
+        payment_id="pay_payment_link_failed_123",
+        amount=6000,
+        status="failed",
+    )
+
+    action = Action(
+        payment_id="pay_payment_link_failed_123",
+        action_type="payment_link",
+        decision_type="auto",
+    )
+
+    audit = AuditLog(
+        payment_id="pay_payment_link_failed_123",
+        event_type="executed",
+        payload_json=json.dumps(
+            {
+                "type": "payment_link",
+                "payment_link_id": "plink_failed_123",
+                "short_url": "https://rzp.io/rzp/failed123",
+            }
+        ),
+    )
+
+    db_session.add(payment)
+    db_session.add(action)
+    db_session.add(audit)
+    db_session.commit()
+
+    def fake_payment_link_fetch(payment_link_id):
+        assert payment_link_id == "plink_failed_123"
+        return {
+            "id": "plink_failed_123",
+            "status": "created",
+        }
+
+    monkeypatch.setattr(
+        "app.services.execution.client.payment_link.fetch",
+        fake_payment_link_fetch,
+    )
+
+    # Force the next decision so the test does not make a real
+    # Razorpay order/payment-link call.
+    monkeypatch.setattr(
+        "app.services.execution.execute_action",
+        lambda db, payment: {
+            "chosen_action": None,
+            "decision_type": "skip",
+            "reason": "no remaining action for test",
+            "executed": False,
+        },
+    )
+
+    result = observe_outcome(
+        db_session,
+        payment,
+    )
+
+    db_session.refresh(payment)
+
+    outcome = (
+        db_session.query(Outcome)
+        .filter(
+            Outcome.payment_id == "pay_payment_link_failed_123"
+        )
+        .first()
+    )
+
+    assert result["status"] == "closed_unrecovered"
+    assert payment.status == "closed_unrecovered"
+    assert outcome is not None
+    assert outcome.action_type == "payment_link"
+    assert outcome.observed_result == "failed"
+
+def test_alt_method_payment_link_success_marks_payment_recovered(
+    db_session,
+    monkeypatch,
+):
+    payment = Payment(
+        payment_id="pay_alt_method_success_123",
+        amount=6000,
+        status="failed",
+    )
+
+    action = Action(
+        payment_id="pay_alt_method_success_123",
+        action_type="alt_method",
+        decision_type="auto",
+    )
+
+    audit = AuditLog(
+        payment_id="pay_alt_method_success_123",
+        event_type="executed",
+        payload_json=json.dumps(
+            {
+                "type": "payment_link",
+                "payment_link_id": "plink_alt_success_123",
+                "short_url": "https://rzp.io/rzp/alt123",
+            }
+        ),
+    )
+
+    db_session.add(payment)
+    db_session.add(action)
+    db_session.add(audit)
+    db_session.commit()
+
+    def fake_payment_link_fetch(payment_link_id):
+        assert payment_link_id == "plink_alt_success_123"
+        return {
+            "id": "plink_alt_success_123",
+            "status": "paid",
+        }
+
+    monkeypatch.setattr(
+        "app.services.execution.client.payment_link.fetch",
+        fake_payment_link_fetch,
+    )
+
+    result = observe_outcome(
+        db_session,
+        payment,
+    )
+
+    db_session.refresh(payment)
+
+    outcome = (
+        db_session.query(Outcome)
+        .filter(
+            Outcome.payment_id == "pay_alt_method_success_123"
+        )
+        .first()
+    )
+
+    assert result["status"] == "recovered"
+    assert payment.status == "recovered"
+    assert outcome is not None
+    assert outcome.action_type == "alt_method"
     assert outcome.observed_result == "success"
