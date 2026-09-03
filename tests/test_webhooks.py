@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 
 import pytest
 from sqlalchemy import create_engine
@@ -12,13 +13,11 @@ from app.api.webhooks import (
     _find_recovery_case_by_payment_link_description,
 )
 from app.db.session import Base
-from app.models.models import AuditLog
+from app.models.models import AuditLog, Payment
 
 
 @pytest.fixture
 def db_session():
-    # Temporary in-memory database.
-    # Real recoverai.db is NOT touched.
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -149,11 +148,40 @@ def test_find_recovery_case_by_payment_link_description(db_session):
     db_session.add(audit)
     db_session.commit()
 
-    # Mirrors the actual Razorpay payment.captured payload:
-    # description = "#TWkIhRTWeOG10I"
     result = _find_recovery_case_by_payment_link_description(
         db_session,
         "#TWkIhRTWeOG10I",
     )
 
     assert result == "pay_payment_link_123"
+
+
+def test_failed_recovery_order_can_be_linked_to_original_case(db_session):
+    payment = Payment(
+        payment_id="pay_original_456",
+        order_id="order_original_456",
+        amount=5000,
+        status="failed",
+    )
+
+    recovery_audit = AuditLog(
+        payment_id="pay_original_456",
+        event_type="executed",
+        payload_json=json.dumps(
+            {
+                "type": "order",
+                "order_id": "order_recovery_456",
+            }
+        ),
+    )
+
+    db_session.add(payment)
+    db_session.add(recovery_audit)
+    db_session.commit()
+
+    original_payment_id = _find_recovery_case_by_order_id(
+        db_session,
+        "order_recovery_456",
+    )
+
+    assert original_payment_id == "pay_original_456"

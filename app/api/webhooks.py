@@ -271,6 +271,7 @@ async def razorpay_webhook(
 
     payment_id = payment_entity.get("id")
 
+    recovery_order_id = payment_entity.get("order_id")
     if not payment_id:
         raise HTTPException(
             status_code=400,
@@ -284,6 +285,36 @@ async def razorpay_webhook(
             db,
             payment_id,
         )
+        if recovery_order_id:
+             original_payment_id = _find_recovery_case_by_order_id(
+                db,
+                recovery_order_id,
+            )
+
+             if original_payment_id and original_payment_id != payment_id:
+                from app.models.models import Payment
+
+                original_payment = (
+                    db.query(Payment)
+                    .filter(
+                        Payment.payment_id == original_payment_id
+                    )
+                    .first()
+                )
+
+                if original_payment:
+                    result = observe_outcome(
+                        db,
+                        original_payment,
+                    )
+
+                    return {
+                        "status": "recovery_attempt_processed",
+                        "recovery_payment_id": payment_id,
+                        "recovery_order_id": recovery_order_id,
+                        "original_payment_id": original_payment.payment_id,
+                        "outcome": result,
+                    }
 
         # Prevent a duplicate/re-delivered webhook from creating
         # another recovery action for the same payment.
