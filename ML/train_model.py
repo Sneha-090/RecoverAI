@@ -30,8 +30,13 @@ print(df.head())
 # Separate features and target
 # -----------------------------
 
-X = df.drop(columns=["customer_id", "recovered"])
+X = df.drop(columns=["customer_id", "recovered"]).copy()
 y = df["recovered"]
+
+# Explicit cause × action interaction.
+# RecoverAI needs to learn that the best recovery action
+# depends on the payment failure cause.
+X["cause_action"] = X["cause"] + "__" + X["action_type"]
 
 print("\nFeature columns:")
 print(X.columns.tolist())
@@ -66,7 +71,8 @@ print("y_test:", y_test.shape)
 
 categorical_features = [
     "cause",
-    "action_type"
+    "action_type",
+    "cause_action"
 ]
 
 numerical_features = [
