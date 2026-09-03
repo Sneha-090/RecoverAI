@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.webhooks import (
     verify_razorpay_signature,
     _find_recovery_case_by_order_id,
+    _find_recovery_case_by_payment_link_description,
 )
 from app.db.session import Base
 from app.models.models import AuditLog
@@ -114,3 +115,45 @@ def test_find_recovery_case_ignores_unrelated_order(db_session):
     )
 
     assert result is None
+
+
+def test_find_recovery_case_by_human_approved_order(db_session):
+    audit = AuditLog(
+        payment_id="pay_human_789",
+        event_type="human_approved_executed",
+        payload_json='{"type":"order","order_id":"order_human_789"}',
+    )
+
+    db_session.add(audit)
+    db_session.commit()
+
+    result = _find_recovery_case_by_order_id(
+        db_session,
+        "order_human_789",
+    )
+
+    assert result == "pay_human_789"
+
+
+def test_find_recovery_case_by_payment_link_description(db_session):
+    audit = AuditLog(
+        payment_id="pay_payment_link_123",
+        event_type="executed",
+        payload_json=(
+            '{"type":"payment_link",'
+            '"payment_link_id":"plink_TWkIhRTWeOG10I",'
+            '"short_url":"https://rzp.io/rzp/test123"}'
+        ),
+    )
+
+    db_session.add(audit)
+    db_session.commit()
+
+    # Mirrors the actual Razorpay payment.captured payload:
+    # description = "#TWkIhRTWeOG10I"
+    result = _find_recovery_case_by_payment_link_description(
+        db_session,
+        "#TWkIhRTWeOG10I",
+    )
+
+    assert result == "pay_payment_link_123"

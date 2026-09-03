@@ -92,13 +92,26 @@ def execute_action(db, payment) -> dict:
 def _get_last_execution_payload(db, payment_id: str):
     entry = (
         db.query(AuditLog)
-        .filter(AuditLog.payment_id == payment_id, AuditLog.event_type == "executed")
-        .order_by(AuditLog.timestamp.desc())
+        .filter(
+            AuditLog.payment_id == payment_id,
+            AuditLog.event_type.in_(
+                ["executed", "human_approved_executed"]
+            ),
+        )
+        .order_by(
+            AuditLog.timestamp.desc(),
+            AuditLog.id.desc(),
+        )
         .first()
     )
+
     if not entry or not entry.payload_json:
         return None
-    return json.loads(entry.payload_json)
+
+    try:
+        return json.loads(entry.payload_json)
+    except (TypeError, json.JSONDecodeError):
+        return None
 
 
 def _check_real_outcome(payload: dict) -> str:

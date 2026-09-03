@@ -17,6 +17,7 @@ from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
 from app.services.ingestion import fetch_and_store_payment
 
+
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
@@ -33,12 +34,22 @@ def verify_razorpay_signature(body: bytes, signature: str) -> bool:
 def _find_recovery_case_by_order_id(db, order_id: str):
     """
     Find the original RecoverAI payment whose recovery action
-    created this Razorpay order.
+    created the given Razorpay order.
+
+    Both automatic and human-approved executions are considered.
+    The latest matching execution is returned.
     """
     entries = (
         db.query(AuditLog)
-        .filter(AuditLog.event_type == "executed")
-        .order_by(AuditLog.timestamp.desc())
+        .filter(
+            AuditLog.event_type.in_(
+                ["executed", "human_approved_executed"]
+            )
+        )
+        .order_by(
+            AuditLog.timestamp.desc(),
+            AuditLog.id.desc(),
+        )
         .all()
     )
 
@@ -60,6 +71,71 @@ def _find_recovery_case_by_order_id(db, order_id: str):
     return None
 
 
+def _find_recovery_case_by_payment_link_description(
+    db,
+    description: str,
+):
+    """
+    Find the original RecoverAI payment associated with a
+    Razorpay Payment Link captured-payment description.
+
+    In the observed Razorpay Test Mode payload, the Payment Link
+    reference appeared in the payment description as:
+
+        #<payment_link_id_without_plink_prefix>
+    """
+    if not description:
+        return None
+
+    normalized_description = description.strip()
+
+    if not normalized_description.startswith("#"):
+        return None
+
+    link_suffix = normalized_description[1:].strip()
+
+    if not link_suffix:
+        return None
+
+    entries = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.event_type.in_(
+                ["executed", "human_approved_executed"]
+            )
+        )
+        .order_by(
+            AuditLog.timestamp.desc(),
+            AuditLog.id.desc(),
+        )
+        .all()
+    )
+
+    for entry in entries:
+        if not entry.payload_json:
+            continue
+
+        try:
+            payload = json.loads(entry.payload_json)
+        except (TypeError, json.JSONDecodeError):
+            continue
+
+        if payload.get("type") != "payment_link":
+            continue
+
+        payment_link_id = payload.get("payment_link_id")
+
+        if not payment_link_id:
+            continue
+
+        normalized_link_id = payment_link_id.removeprefix("plink_")
+
+        if normalized_link_id == link_suffix:
+            return entry.payment_id
+
+    return None
+
+
 @router.post("/razorpay")
 async def razorpay_webhook(
     request: Request,
@@ -73,7 +149,10 @@ async def razorpay_webhook(
 
     body = await request.body()
 
-    if not verify_razorpay_signature(body, x_razorpay_signature):
+    if not verify_razorpay_signature(
+        body,
+        x_razorpay_signature,
+    ):
         raise HTTPException(
             status_code=400,
             detail="Invalid Razorpay webhook signature",
@@ -81,6 +160,12 @@ async def razorpay_webhook(
 
     payload = await request.json()
     event = payload.get("event")
+
+    # Temporary debugging output while validating Razorpay
+    # Payment Link webhook payloads.
+    print("\n===== RAZORPAY WEBHOOK PAYLOAD =====")
+    print(json.dumps(payload, indent=2))
+    print("====================================\n")
 
     # ---------------------------------------------------------
     # PAYMENT CAPTURED
@@ -94,6 +179,7 @@ async def razorpay_webhook(
 
         captured_payment_id = payment_entity.get("id")
         recovery_order_id = payment_entity.get("order_id")
+        payment_description = payment_entity.get("description")
 
         if not captured_payment_id:
             raise HTTPException(
@@ -101,33 +187,47 @@ async def razorpay_webhook(
                 detail="payment.captured event missing payment id",
             )
 
-        if not recovery_order_id:
-            return {
-                "status": "ignored",
-                "reason": "Captured payment has no order_id.",
-            }
-
         db = SessionLocal()
 
         try:
-            original_payment_id = _find_recovery_case_by_order_id(
-                db,
-                recovery_order_id,
-            )
+            original_payment_id = None
+
+            # First try the existing order-based recovery path.
+            if recovery_order_id:
+                original_payment_id = _find_recovery_case_by_order_id(
+                    db,
+                    recovery_order_id,
+                )
+
+            # If it is not an order-based recovery, try Payment Link
+            # correlation using the captured payment description.
+            if not original_payment_id and payment_description:
+                original_payment_id = (
+                    _find_recovery_case_by_payment_link_description(
+                        db,
+                        payment_description,
+                    )
+                )
 
             if not original_payment_id:
                 return {
                     "status": "ignored",
-                    "reason": "Captured payment does not belong to a RecoverAI recovery order.",
+                    "reason": (
+                        "Captured payment does not belong to a "
+                        "RecoverAI recovery action."
+                    ),
                     "captured_payment_id": captured_payment_id,
                     "order_id": recovery_order_id,
+                    "description": payment_description,
                 }
 
             from app.models.models import Payment
 
             original_payment = (
                 db.query(Payment)
-                .filter(Payment.payment_id == original_payment_id)
+                .filter(
+                    Payment.payment_id == original_payment_id
+                )
                 .first()
             )
 
@@ -137,13 +237,17 @@ async def razorpay_webhook(
                     "reason": "Original RecoverAI payment not found.",
                 }
 
-            result = observe_outcome(db, original_payment)
+            result = observe_outcome(
+                db,
+                original_payment,
+            )
 
             return {
                 "status": "outcome_observed",
                 "payment_id": original_payment.payment_id,
                 "captured_payment_id": captured_payment_id,
                 "order_id": recovery_order_id,
+                "description": payment_description,
                 "outcome": result,
             }
 
@@ -176,7 +280,10 @@ async def razorpay_webhook(
     db = SessionLocal()
 
     try:
-        payment = fetch_and_store_payment(db, payment_id)
+        payment = fetch_and_store_payment(
+            db,
+            payment_id,
+        )
 
         # Prevent a duplicate/re-delivered webhook from creating
         # another recovery action for the same payment.
@@ -193,23 +300,37 @@ async def razorpay_webhook(
 
         if recent_action:
             if (
-                recent_action.decision_type == DecisionType.human_review
-                and recent_action.review_status == ReviewStatus.pending
+                recent_action.decision_type
+                == DecisionType.human_review
+                and recent_action.review_status
+                == ReviewStatus.pending
             ):
                 return {
                     "status": "already_processing",
                     "payment_id": payment_id,
-                    "reason": "Existing human-review action is still pending.",
+                    "reason": (
+                        "Existing human-review action is still pending."
+                    ),
                 }
 
             return {
                 "status": "already_processing",
                 "payment_id": payment_id,
-                "reason": "A recent recovery action already exists for this payment.",
+                "reason": (
+                    "A recent recovery action already exists "
+                    "for this payment."
+                ),
             }
 
-        diagnosis = diagnose_and_store(db, payment)
-        result = execute_action(db, payment)
+        diagnosis = diagnose_and_store(
+            db,
+            payment,
+        )
+
+        result = execute_action(
+            db,
+            payment,
+        )
 
         return {
             "status": "processed",
