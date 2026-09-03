@@ -45,6 +45,35 @@ db = SessionLocal()
 
 
 # =====================================================
+# TOP-LEVEL RECOVERY SNAPSHOT
+# =====================================================
+
+impact_snapshot = compute_impact_metrics(db)
+
+kpi1, kpi2, kpi3 = st.columns(3)
+
+kpi1.metric(
+    "Payments in Simulation",
+    impact_snapshot["total_payments"],
+)
+
+kpi2.metric(
+    "Recovered Payments",
+    impact_snapshot["recovered_count"],
+)
+
+kpi3.metric(
+    "Revenue Recovered",
+    f"Rs.{impact_snapshot['total_recovered']:,.2f}",
+)
+
+st.caption(
+    "Synthetic impact snapshot — "
+    "live Razorpay cases are shown in the Live Razorpay Cases tab."
+)
+
+
+# =====================================================
 # HELPERS
 # =====================================================
 
@@ -128,7 +157,9 @@ with tab_live:
 
     if not live_payments:
 
-        st.info("No real Razorpay payments processed yet.")
+        st.info(
+            "No real Razorpay payments processed yet."
+        )
 
     else:
 
@@ -139,7 +170,8 @@ with tab_live:
             diagnosis = (
                 db.query(Diagnosis)
                 .filter(
-                    Diagnosis.payment_id == payment.payment_id
+                    Diagnosis.payment_id
+                    == payment.payment_id
                 )
                 .first()
             )
@@ -147,7 +179,8 @@ with tab_live:
             actions = (
                 db.query(Action)
                 .filter(
-                    Action.payment_id == payment.payment_id
+                    Action.payment_id
+                    == payment.payment_id
                 )
                 .order_by(Action.chosen_at)
                 .all()
@@ -156,7 +189,8 @@ with tab_live:
             outcomes = (
                 db.query(Outcome)
                 .filter(
-                    Outcome.payment_id == payment.payment_id
+                    Outcome.payment_id
+                    == payment.payment_id
                 )
                 .order_by(Outcome.observed_at)
                 .all()
@@ -207,7 +241,9 @@ with tab_live:
         # RECOVERY ACTIONS
         # -------------------------------------------------
 
-        st.subheader("Available Recovery Actions")
+        st.subheader(
+            "Available Recovery Actions"
+        )
 
         recovery_action_found = False
 
@@ -226,6 +262,7 @@ with tab_live:
                 recovery
                 and recovery["type"] == "order"
             ):
+
                 recovery_action_found = True
 
                 checkout_url = (
@@ -241,6 +278,7 @@ with tab_live:
                 )
 
         if not recovery_action_found:
+
             st.caption(
                 "No active RecoverAI retry payments available."
             )
@@ -270,7 +308,8 @@ with tab_batch:
         diagnosis = (
             db.query(Diagnosis)
             .filter(
-                Diagnosis.payment_id == payment.payment_id
+                Diagnosis.payment_id
+                == payment.payment_id
             )
             .first()
         )
@@ -278,7 +317,8 @@ with tab_batch:
         actions = (
             db.query(Action)
             .filter(
-                Action.payment_id == payment.payment_id
+                Action.payment_id
+                == payment.payment_id
             )
             .all()
         )
@@ -286,7 +326,8 @@ with tab_batch:
         outcomes = (
             db.query(Outcome)
             .filter(
-                Outcome.payment_id == payment.payment_id
+                Outcome.payment_id
+                == payment.payment_id
             )
             .all()
         )
@@ -367,8 +408,10 @@ with tab_review:
     pending = (
         db.query(Action)
         .filter(
-            Action.decision_type == DecisionType.human_review,
-            Action.review_status == ReviewStatus.pending,
+            Action.decision_type
+            == DecisionType.human_review,
+            Action.review_status
+            == ReviewStatus.pending,
         )
         .all()
     )
@@ -445,11 +488,14 @@ with tab_review:
                     remaining
                     and remaining.total_seconds() > 0
                 ):
+
                     st.caption(
-                        f"Deadline: "
+                        "Deadline: "
                         f"{remaining.total_seconds() / 3600:.1f}h remaining"
                     )
+
                 else:
+
                     st.caption(
                         "⚠️ Deadline has passed"
                     )
@@ -521,7 +567,9 @@ with tab_review:
             Action.review_status
             == ReviewStatus.actioned,
         )
-        .order_by(Action.chosen_at.desc())
+        .order_by(
+            Action.chosen_at.desc()
+        )
         .limit(5)
         .all()
     )
@@ -697,13 +745,34 @@ with tab_impact:
 
 with tab_explain:
 
-    search_id = st.text_input(
-        "Payment ID",
-        placeholder=(
-            "e.g. pay_TWeYgGZ8AoeDmt "
-            "or sim_0014_..."
-        ),
+    # -------------------------------------------------
+    # PAYMENT SELECTOR
+    # -------------------------------------------------
+
+    available_payments = (
+        db.query(Payment)
+        .order_by(Payment.created_at.desc())
+        .all()
     )
+
+    payment_options = {
+        f"{p.payment_id} — Rs.{p.amount:,.2f} — {p.status}": p.payment_id
+        for p in available_payments
+    }
+
+    if not payment_options:
+        st.info(
+            "No payment cases are available for decision explanation."
+        )
+        search_id = None
+
+    else:
+        selected_label = st.selectbox(
+            "Select a payment to inspect",
+            options=list(payment_options.keys()),
+        )
+
+        search_id = payment_options[selected_label]
 
     if search_id:
 
@@ -891,7 +960,9 @@ with tab_explain:
                     Action.payment_id
                     == search_id
                 )
-                .order_by(Action.chosen_at)
+                .order_by(
+                    Action.chosen_at
+                )
                 .all()
             )
 
@@ -922,13 +993,17 @@ with tab_explain:
                     Outcome.payment_id
                     == search_id
                 )
-                .order_by(Outcome.observed_at)
+                .order_by(
+                    Outcome.observed_at
+                )
                 .all()
             )
 
             if actions:
 
-                for i, action in enumerate(actions):
+                for i, action in enumerate(
+                    actions
+                ):
 
                     match = next(
                         (
