@@ -3,6 +3,7 @@ import hmac
 import json
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -14,6 +15,7 @@ from app.api.webhooks import (
 )
 from app.db.session import Base
 from app.models.models import AuditLog, Payment
+from app.main import app
 
 
 @pytest.fixture
@@ -185,3 +187,149 @@ def test_failed_recovery_order_can_be_linked_to_original_case(db_session):
     )
 
     assert original_payment_id == "pay_original_456"
+def test_duplicate_webhook_event_is_detected(db_session):
+    from app.api.webhooks import (
+        _webhook_event_already_processed,
+        _record_processed_webhook,
+    )
+
+    event_id = "evt_test_duplicate_123"
+
+    # First time: event should not exist.
+    assert _webhook_event_already_processed(
+        db_session,
+        event_id,
+    ) is False
+
+    # Record the event as processed.
+    _record_processed_webhook(
+        db=db_session,
+        payment_id="pay_test_123",
+        event_type="payment.failed",
+        razorpay_event_id=event_id,
+        payload={
+            "event": "payment.failed",
+            "test": True,
+        },
+    )
+
+    # Second time: same event ID must be detected.
+    assert _webhook_event_already_processed(
+        db_session,
+        event_id,
+    ) is True
+
+@pytest.fixture
+def client(db_session, monkeypatch):
+    import app.api.webhooks as webhooks
+
+    monkeypatch.setattr(
+        webhooks,
+        "SessionLocal",
+        lambda: db_session,
+    )
+
+    return TestClient(app)
+
+def test_webhook_endpoint_rejects_duplicate_event(
+    client,
+    db_session,
+    monkeypatch,
+):
+    import app.api.webhooks as webhooks
+
+    secret = "test_webhook_secret"
+
+    original_secret = webhooks.settings.razorpay_webhook_secret
+    webhooks.settings.razorpay_webhook_secret = secret
+
+    try:
+        payload = {
+            "entity": "event",
+            "event": "payment.failed",
+            "payload": {
+                "payment": {
+                    "entity": {
+                        "id": "pay_duplicate_123",
+                        "order_id": None,
+                    }
+                }
+            },
+        }
+
+        body = json.dumps(payload).encode("utf-8")
+
+        signature = hmac.new(
+            secret.encode("utf-8"),
+            body,
+            hashlib.sha256,
+        ).hexdigest()
+
+        event_id = "evt_duplicate_123"
+
+        # Keep the first request focused on idempotency.
+        # We do not want diagnosis/execution/Razorpay calls in this test.
+        payment = Payment(
+            payment_id="pay_duplicate_123",
+            amount=5000,
+            status="failed",
+        )
+
+        db_session.add(payment)
+        db_session.commit()
+
+        monkeypatch.setattr(
+            webhooks,
+            "fetch_and_store_payment",
+            lambda db, payment_id: payment,
+        )
+
+        monkeypatch.setattr(
+            webhooks,
+            "diagnose_and_store",
+            lambda db, payment: type(
+                "DiagnosisResult",
+                (),
+                {"cause": "test_failure"},
+            )(),
+        )
+
+        monkeypatch.setattr(
+            webhooks,
+            "execute_action",
+            lambda db, payment: {
+                "chosen_action": "retry",
+                "decision_type": "auto",
+                "executed": True,
+            },
+        )
+
+        # First request: should be processed.
+        first_response = client.post(
+            "/webhooks/razorpay",
+            content=body,
+            headers={
+                "X-Razorpay-Signature": signature,
+                "X-Razorpay-Event-Id": event_id,
+            },
+        )
+
+        assert first_response.status_code == 200
+        assert first_response.json()["status"] == "processed"
+
+        # Second request with the exact same Razorpay event ID.
+        second_response = client.post(
+            "/webhooks/razorpay",
+            content=body,
+            headers={
+                "X-Razorpay-Signature": signature,
+                "X-Razorpay-Event-Id": event_id,
+            },
+        )
+
+        assert second_response.status_code == 200
+        assert second_response.json()["status"] == "already_processed"
+        assert second_response.json()["razorpay_event_id"] == event_id
+
+    finally:
+        webhooks.settings.razorpay_webhook_secret = original_secret

@@ -12,6 +12,7 @@ from app.models.models import (
     AuditLog,
     DecisionType,
     ReviewStatus,
+    Payment,
 )
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
@@ -136,10 +137,56 @@ def _find_recovery_case_by_payment_link_description(
     return None
 
 
+def _webhook_event_already_processed(db, razorpay_event_id: str) -> bool:
+    """
+    Check whether this exact Razorpay webhook event ID was already
+    recorded as processed.
+    """
+    if not razorpay_event_id:
+        return False
+
+    existing_event = (
+        db.query(AuditLog)
+        .filter(
+            AuditLog.razorpay_event_id == razorpay_event_id
+        )
+        .first()
+    )
+
+    return existing_event is not None
+
+
+def _record_processed_webhook(
+    db,
+    payment_id: str,
+    event_type: str,
+    razorpay_event_id: str | None,
+    payload: dict,
+):
+    """
+    Record a successfully processed Razorpay webhook event.
+    """
+    if not razorpay_event_id:
+        return
+
+    entry = AuditLog(
+        payment_id=payment_id,
+        timestamp=datetime.utcnow(),
+        event_type="webhook_processed",
+        reason=event_type,
+        payload_json=json.dumps(payload),
+        razorpay_event_id=razorpay_event_id,
+    )
+
+    db.add(entry)
+    db.commit()
+
+
 @router.post("/razorpay")
 async def razorpay_webhook(
     request: Request,
     x_razorpay_signature: str | None = Header(default=None),
+    x_razorpay_event_id: str | None = Header(default=None),
 ):
     if not x_razorpay_signature:
         raise HTTPException(
@@ -160,47 +207,68 @@ async def razorpay_webhook(
 
     payload = await request.json()
     event = payload.get("event")
+    razorpay_event_id = x_razorpay_event_id
 
-    # Temporary debugging output while validating Razorpay
-    # Payment Link webhook payloads.
+    # Temporary debugging output while validating Razorpay webhooks.
     print("\n===== RAZORPAY WEBHOOK PAYLOAD =====")
     print(json.dumps(payload, indent=2))
     print("====================================\n")
 
-    # ---------------------------------------------------------
-    # PAYMENT CAPTURED
-    # ---------------------------------------------------------
-    if event == "payment.captured":
-        payment_entity = (
-            payload.get("payload", {})
-            .get("payment", {})
-            .get("entity", {})
+    # Ignore events that this application does not handle.
+    if event not in {"payment.captured", "payment.failed"}:
+        return {
+            "status": "ignored",
+            "event": event,
+        }
+
+    payment_entity = (
+        payload.get("payload", {})
+        .get("payment", {})
+        .get("entity", {})
+    )
+
+    payment_id = payment_entity.get("id")
+
+    if not payment_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{event} event missing payment id",
         )
 
-        captured_payment_id = payment_entity.get("id")
-        recovery_order_id = payment_entity.get("order_id")
-        payment_description = payment_entity.get("description")
+    db = SessionLocal()
 
-        if not captured_payment_id:
-            raise HTTPException(
-                status_code=400,
-                detail="payment.captured event missing payment id",
-            )
+    try:
+        # -----------------------------------------------------
+        # IDEMPOTENCY CHECK
+        # -----------------------------------------------------
+        if _webhook_event_already_processed(
+            db,
+            razorpay_event_id,
+        ):
+            return {
+                "status": "already_processed",
+                "razorpay_event_id": razorpay_event_id,
+                "event": event,
+            }
 
-        db = SessionLocal()
+        # -----------------------------------------------------
+        # PAYMENT CAPTURED
+        # -----------------------------------------------------
+        if event == "payment.captured":
+            captured_payment_id = payment_entity.get("id")
+            recovery_order_id = payment_entity.get("order_id")
+            payment_description = payment_entity.get("description")
 
-        try:
             original_payment_id = None
 
-            # First try the existing order-based recovery path.
+            # First try order-based recovery matching.
             if recovery_order_id:
                 original_payment_id = _find_recovery_case_by_order_id(
                     db,
                     recovery_order_id,
                 )
 
-            # If it is not an order-based recovery, try Payment Link
-            # correlation using the captured payment description.
+            # If not found, try Payment Link matching.
             if not original_payment_id and payment_description:
                 original_payment_id = (
                     _find_recovery_case_by_payment_link_description(
@@ -221,8 +289,6 @@ async def razorpay_webhook(
                     "description": payment_description,
                 }
 
-            from app.models.models import Payment
-
             original_payment = (
                 db.query(Payment)
                 .filter(
@@ -242,6 +308,14 @@ async def razorpay_webhook(
                 original_payment,
             )
 
+            _record_processed_webhook(
+                db=db,
+                payment_id=original_payment.payment_id,
+                event_type=event,
+                razorpay_event_id=razorpay_event_id,
+                payload=payload,
+            )
+
             return {
                 "status": "outcome_observed",
                 "payment_id": original_payment.payment_id,
@@ -251,73 +325,62 @@ async def razorpay_webhook(
                 "outcome": result,
             }
 
-        finally:
-            db.close()
+        # -----------------------------------------------------
+        # PAYMENT FAILED
+        # -----------------------------------------------------
+        recovery_order_id = payment_entity.get("order_id")
 
-    # ---------------------------------------------------------
-    # PAYMENT FAILED
-    # ---------------------------------------------------------
-    if event != "payment.failed":
-        return {
-            "status": "ignored",
-            "event": event,
-        }
+        # First determine whether this failed payment belongs
+        # to an existing RecoverAI recovery action.
+        original_payment_id = None
 
-    payment_entity = (
-        payload.get("payload", {})
-        .get("payment", {})
-        .get("entity", {})
-    )
-
-    payment_id = payment_entity.get("id")
-
-    recovery_order_id = payment_entity.get("order_id")
-    if not payment_id:
-        raise HTTPException(
-            status_code=400,
-            detail="payment.failed event missing payment id",
-        )
-
-    db = SessionLocal()
-
-    try:
-        payment = fetch_and_store_payment(
-            db,
-            payment_id,
-        )
         if recovery_order_id:
-             original_payment_id = _find_recovery_case_by_order_id(
+            original_payment_id = _find_recovery_case_by_order_id(
                 db,
                 recovery_order_id,
             )
 
-             if original_payment_id and original_payment_id != payment_id:
-                from app.models.models import Payment
+        # Recovery attempt failed.
+        # Do NOT create a new independent RecoverAI case.
+        if original_payment_id and original_payment_id != payment_id:
+            original_payment = (
+                db.query(Payment)
+                .filter(
+                    Payment.payment_id == original_payment_id
+                )
+                .first()
+            )
 
-                original_payment = (
-                    db.query(Payment)
-                    .filter(
-                        Payment.payment_id == original_payment_id
-                    )
-                    .first()
+            if original_payment:
+                result = observe_outcome(
+                    db,
+                    original_payment,
                 )
 
-                if original_payment:
-                    result = observe_outcome(
-                        db,
-                        original_payment,
-                    )
+                _record_processed_webhook(
+                    db=db,
+                    payment_id=original_payment.payment_id,
+                    event_type=event,
+                    razorpay_event_id=razorpay_event_id,
+                    payload=payload,
+                )
 
-                    return {
-                        "status": "recovery_attempt_processed",
-                        "recovery_payment_id": payment_id,
-                        "recovery_order_id": recovery_order_id,
-                        "original_payment_id": original_payment.payment_id,
-                        "outcome": result,
-                    }
+                return {
+                    "status": "recovery_attempt_processed",
+                    "recovery_payment_id": payment_id,
+                    "recovery_order_id": recovery_order_id,
+                    "original_payment_id": original_payment.payment_id,
+                    "outcome": result,
+                }
 
-        # Prevent a duplicate/re-delivered webhook from creating
-        # another recovery action for the same payment.
+        # Normal original payment failure.
+        payment = fetch_and_store_payment(
+            db,
+            payment_id,
+        )
+
+        # Prevent duplicate/re-delivered webhook processing for
+        # the same payment using the existing recent-action guard.
         recent_action = (
             db.query(Action)
             .filter(
@@ -361,6 +424,14 @@ async def razorpay_webhook(
         result = execute_action(
             db,
             payment,
+        )
+
+        _record_processed_webhook(
+            db=db,
+            payment_id=payment.payment_id,
+            event_type=event,
+            razorpay_event_id=razorpay_event_id,
+            payload=payload,
         )
 
         return {

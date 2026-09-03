@@ -124,6 +124,7 @@ class AuditLog(Base):
     event_type = Column(String, nullable=False)
     payload_json = Column(Text, nullable=True)
     reason = Column(String, nullable=True)
+    razorpay_event_id = Column(String, unique=True, nullable=True)
 
 
 class Customer(Base):
