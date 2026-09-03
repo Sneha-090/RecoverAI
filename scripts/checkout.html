@@ -1,14 +1,29 @@
 <!DOCTYPE html>
 <html>
-<head><title>RecoverAI Test Checkout</title></head>
+<head>
+  <title>RecoverAI Test Checkout</title>
+</head>
 <body>
+
 <h3>RecoverAI — Razorpay Test Checkout</h3>
 
-<label>Order ID (from create_order.py output):</label><br>
-<input type="text" id="orderIdInput" placeholder="order_XXXXXXXXXX" style="width:300px;"><br><br>
+<label>Order ID:</label><br>
+<input
+  type="text"
+  id="orderIdInput"
+  placeholder="order_XXXXXXXXXX"
+  style="width:300px;"
+>
+<br><br>
 
 <label>Amount in Rupees:</label><br>
-<input type="number" id="amountInput" placeholder="499" style="width:300px;"><br><br>
+<input
+  type="number"
+  id="amountInput"
+  placeholder="499"
+  style="width:300px;"
+>
+<br><br>
 
 <button id="loadBtn">Load Order</button>
 <p id="info"></p>
@@ -16,18 +31,19 @@
 <button id="pay" disabled>Pay Now (Test Mode)</button>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 <script>
 const RAZORPAY_KEY_ID = "rzp_test_TU2MpmBcUHatw7";
 
 let currentOrderId = null;
 let currentAmountPaise = null;
 
-document.getElementById("loadBtn").onclick = function () {
-  const orderId = document.getElementById("orderIdInput").value.trim();
-  const amountRupees = parseFloat(document.getElementById("amountInput").value);
 
+function loadOrder(orderId, amountRupees) {
   if (!orderId || !amountRupees) {
-    document.getElementById("info").innerText = "Enter both Order ID and Amount.";
+    document.getElementById("info").innerText =
+      "Enter both Order ID and Amount.";
+
     document.getElementById("pay").disabled = true;
     return;
   }
@@ -35,46 +51,94 @@ document.getElementById("loadBtn").onclick = function () {
   currentOrderId = orderId;
   currentAmountPaise = Math.round(amountRupees * 100);
 
+  document.getElementById("orderIdInput").value = orderId;
+  document.getElementById("amountInput").value = amountRupees;
+
   document.getElementById("info").innerText =
     "Loaded: " + currentOrderId + " | Rs." + amountRupees;
+
   document.getElementById("pay").disabled = false;
+}
+
+
+document.getElementById("loadBtn").onclick = function () {
+  const orderId =
+    document.getElementById("orderIdInput").value.trim();
+
+  const amountRupees =
+    parseFloat(document.getElementById("amountInput").value);
+
+  loadOrder(orderId, amountRupees);
 };
 
+
 document.getElementById("pay").onclick = function () {
-  var options = {
+
+  const options = {
     key: RAZORPAY_KEY_ID,
     amount: currentAmountPaise,
     currency: "INR",
     order_id: currentOrderId,
+
     handler: function (response) {
-      alert("payment_id: " + response.razorpay_payment_id);
+      alert(
+        "PAYMENT SUCCESSFUL\n\n" +
+        "Payment ID: " + response.razorpay_payment_id + "\n" +
+        "Order ID: " + response.razorpay_order_id
+      );
     }
   };
-  var rzp = new Razorpay(options);
-  var rzp = new Razorpay(options);
 
-rzp.on("payment.failed", function (response) {
-  console.log("PAYMENT FAILED:", response);
+  const rzp = new Razorpay(options);
 
-  const paymentId = response.error?.metadata?.payment_id || "Not provided";
-  const orderId = response.error?.metadata?.order_id || currentOrderId;
-  const errorCode = response.error?.code || "Not provided";
-  const reason = response.error?.reason || "Not provided";
-  const description = response.error?.description || "Not provided";
+  rzp.on("payment.failed", function (response) {
 
-  alert(
-    "PAYMENT FAILED\n\n" +
-    "Payment ID: " + paymentId + "\n" +
-    "Order ID: " + orderId + "\n" +
-    "Error Code: " + errorCode + "\n" +
-    "Reason: " + reason + "\n" +
-    "Description: " + description
-  );
-});
+    console.log("PAYMENT FAILED:", response);
 
+    const paymentId =
+      response.error?.metadata?.payment_id || "Not provided";
+
+    const orderId =
+      response.error?.metadata?.order_id || currentOrderId;
+
+    const errorCode =
+      response.error?.code || "Not provided";
+
+    const reason =
+      response.error?.reason || "Not provided";
+
+    const description =
+      response.error?.description || "Not provided";
+
+    alert(
+      "PAYMENT FAILED\n\n" +
+      "Payment ID: " + paymentId + "\n" +
+      "Order ID: " + orderId + "\n" +
+      "Error Code: " + errorCode + "\n" +
+      "Reason: " + reason + "\n" +
+      "Description: " + description
+    );
+  });
 
   rzp.open();
 };
+
+
+// ---------------------------------------------------------
+// AUTOMATICALLY LOAD ORDER FROM URL
+// Example:
+// checkout.html?order_id=order_ABC123&amount=8000
+// ---------------------------------------------------------
+
+const params = new URLSearchParams(window.location.search);
+
+const urlOrderId = params.get("order_id");
+const urlAmount = parseFloat(params.get("amount"));
+
+if (urlOrderId && urlAmount) {
+  loadOrder(urlOrderId, urlAmount);
+}
 </script>
+
 </body>
-</html>
+</html
