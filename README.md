@@ -329,6 +329,19 @@ Recovery is marked successful only after the actual Razorpay payment outcome is 
 Payment-link and alternate-method recovery actions are implemented in the recovery layer, including outcome-verification logic. The primary live demonstration focuses on the retry path because it is the most directly demonstrated Razorpay Test Mode flow.
 
 ---
+## Dashboard Preview
+
+### Recovery Dashboard
+
+![RecoverAI Dashboard](assets/dashboard.png)
+
+### Decision Explanation
+
+![Decision Explanation](assets/decision-explanation.png)
+
+### Measured Recovery Impact
+
+![Recovery Impact](assets/impact.png)
 
 ## Dashboard
 
