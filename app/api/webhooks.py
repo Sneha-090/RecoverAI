@@ -210,9 +210,7 @@ async def razorpay_webhook(
     razorpay_event_id = x_razorpay_event_id
 
     # Temporary debugging output while validating Razorpay webhooks.
-    print("\n===== RAZORPAY WEBHOOK PAYLOAD =====")
-    print(json.dumps(payload, indent=2))
-    print("====================================\n")
+    
 
     # Ignore events that this application does not handle.
     if event not in {"payment.captured", "payment.failed"}:
