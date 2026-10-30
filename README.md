@@ -284,6 +284,25 @@ After updating an existing installation, stop the app, run
 `python -m app.db.init_db`, then restart it. This adds the reservation tables
 without removing existing data. Existing audit-log event IDs remain recognized.
 
+`recovery_reservations` also permits only one active operation per payment,
+including checkout-triggered processing, webhook execution, human approvals,
+and outcome observation. Reservations remain while an order/link awaits payment
+or a case awaits human review. Outcome observation and approval atomically take
+over their corresponding waiting phase. Unpaid/open orders and links remain
+pending; they do not trigger another recovery action. Delayed events for an older
+attempt cannot advance the current attempt. A busy outcome webhook returns 503
+and remains retryable, so it can be handled after the owner finishes.
+
+If a provider request times out, or saving its result fails, the reservation is
+retained as `needs_reconciliation`. A process crash can leave `processing`.
+Neither state expires automatically: retrying blindly could create a second
+order/link. Run `python -m scripts.inspect_reservations` for a read-only list.
+An operator must check Razorpay and reconcile action/audit records before
+releasing interrupted reservations. Automatic provider reconciliation and a
+background worker are not implemented; no exactly-once provider guarantee is
+claimed. Existing unobserved actions and pending reviews are recognized when
+upgrading, so installing the new tables does not reopen them for execution.
+
 RecoverAI handles:
 
 ```text
