@@ -17,6 +17,7 @@ from app.models.models import (
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
 from app.services.ingestion import fetch_and_store_payment
+from app.services.reservations import reserve_webhook, finish_webhook
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -209,9 +210,6 @@ async def razorpay_webhook(
     event = payload.get("event")
     razorpay_event_id = x_razorpay_event_id
 
-    # Temporary debugging output while validating Razorpay webhooks.
-    
-
     # Ignore events that this application does not handle.
     if event not in {"payment.captured", "payment.failed"}:
         return {
@@ -233,7 +231,12 @@ async def razorpay_webhook(
             detail=f"{event} event missing payment id",
         )
 
+    if not razorpay_event_id or not razorpay_event_id.strip():
+        raise HTTPException(status_code=400, detail="Missing Razorpay webhook event id")
+
     db = SessionLocal()
+    reserved = False
+    receipt_state = "processed"
 
     try:
         # -----------------------------------------------------
@@ -248,6 +251,17 @@ async def razorpay_webhook(
                 "razorpay_event_id": razorpay_event_id,
                 "event": event,
             }
+
+        existing_state = reserve_webhook(db, razorpay_event_id)
+        if existing_state == "processed":
+            return {"status": "already_processed", "razorpay_event_id": razorpay_event_id, "event": event}
+        if existing_state is not None:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Webhook is {existing_state}; no duplicate execution attempted",
+                headers={"Retry-After": "30"},
+            )
+        reserved = True
 
         # -----------------------------------------------------
         # PAYMENT CAPTURED
@@ -441,5 +455,14 @@ async def razorpay_webhook(
             "executed": result["executed"],
         }
 
+    except Exception:
+        if reserved:
+            db.rollback()
+            receipt_state = "needs_reconciliation"
+        raise
     finally:
-        db.close()
+        try:
+            if reserved:
+                finish_webhook(db, razorpay_event_id, receipt_state)
+        finally:
+            db.close()

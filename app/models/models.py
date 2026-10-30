@@ -135,3 +135,20 @@ class Customer(Base):
     previous_recoveries = Column(Integer, default=0)
     avg_attempts = Column(Float, default=0.0)
     last_recovery_days_ago = Column(Integer, nullable=True)
+
+
+class WebhookReceipt(Base):
+    __tablename__ = "webhook_receipts"
+
+    event_id = Column(String, primary_key=True)
+    state = Column(String, nullable=False, default="processing")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class RecoveryReservation(Base):
+    __tablename__ = "recovery_reservations"
+
+    payment_id = Column(String, primary_key=True)
+    owner = Column(String, nullable=False)
+    state = Column(String, nullable=False, default="processing")
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)

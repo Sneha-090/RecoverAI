@@ -64,6 +64,56 @@ def test_valid_razorpay_signature():
         webhooks.settings.razorpay_webhook_secret = original_secret
 
 
+def signed_event(event_id=None):
+    from app.config import settings
+    body = json.dumps({
+        "event": "payment.failed",
+        "payload": {"payment": {"entity": {"id": "pay_claim_test"}}},
+    }).encode()
+    headers = {"X-Razorpay-Signature": hmac.new(
+        settings.razorpay_webhook_secret.encode(), body, hashlib.sha256,
+    ).hexdigest()}
+    if event_id is not None:
+        headers["X-Razorpay-Event-Id"] = event_id
+    return body, headers
+
+
+def test_handled_webhook_requires_event_id(client, monkeypatch):
+    from unittest.mock import Mock
+    fetch = Mock(side_effect=AssertionError("Must reject before ingestion"))
+    monkeypatch.setattr("app.api.webhooks.fetch_and_store_payment", fetch)
+    body, headers = signed_event()
+    assert client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 400
+    fetch.assert_not_called()
+
+
+@pytest.mark.parametrize("state", ["processing", "needs_reconciliation", "processed"])
+def test_reserved_event_never_reexecutes(client, db_session, monkeypatch, state):
+    from unittest.mock import Mock
+    from app.models.models import WebhookReceipt
+    db_session.add(WebhookReceipt(event_id="evt_reserved", state=state))
+    db_session.commit()
+    fetch = Mock(side_effect=AssertionError("Must not ingest duplicate"))
+    monkeypatch.setattr("app.api.webhooks.fetch_and_store_payment", fetch)
+    body, headers = signed_event("evt_reserved")
+    response = client.post("/webhooks/razorpay", content=body, headers=headers)
+    assert response.status_code == (200 if state == "processed" else 503)
+    fetch.assert_not_called()
+
+
+def test_interrupted_webhook_is_not_blindly_replayed(client, db_session, monkeypatch):
+    from unittest.mock import Mock
+    from app.models.models import WebhookReceipt
+    fetch = Mock(side_effect=TimeoutError("interrupted request"))
+    monkeypatch.setattr("app.api.webhooks.fetch_and_store_payment", fetch)
+    body, headers = signed_event("evt_interrupted")
+    with TestClient(app, raise_server_exceptions=False) as safe_client:
+        assert safe_client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 500
+        assert safe_client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 503
+    assert db_session.get(WebhookReceipt, "evt_interrupted").state == "needs_reconciliation"
+    assert fetch.call_count == 1
+
+
 def test_invalid_razorpay_signature():
     body = b'{"event":"payment.failed"}'
     secret = "test_webhook_secret"

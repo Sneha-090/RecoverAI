@@ -273,6 +273,17 @@ RecoverAI also uses Razorpay's event ID to prevent duplicate webhook processing.
 
 ## Webhook Reliability and Idempotency
 
+Webhook processing now reserves each event ID in `webhook_receipts` **before**
+ingestion or execution. Concurrent deliveries cannot both reserve the same ID.
+Handled events require `X-Razorpay-Event-Id`; a completed delivery is acknowledged
+without executing again. In-flight duplicates return HTTP 503 for later retry.
+An interrupted delivery is marked `needs_reconciliation` and is not automatically
+replayed, because the external provider may already have accepted an action.
+
+After updating an existing installation, stop the app, run
+`python -m app.db.init_db`, then restart it. This adds the reservation tables
+without removing existing data. Existing audit-log event IDs remain recognized.
+
 RecoverAI handles:
 
 ```text
