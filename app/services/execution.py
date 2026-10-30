@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from app.config import settings
 from app.services.decision import decide
-from app.services.eligibility import is_retry_eligible
+from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
 from app.models.models import Action, AuditLog, DecisionType, ReviewStatus, Payment
@@ -35,6 +35,15 @@ def execute_action(db, payment) -> dict:
     if decision["decision_type"] == "skip":
         _log_audit(db, payment.payment_id, "skipped", decision["reason"])
         return {**decision, "executed": False}
+
+    # Recheck before execution/escalation in case the case changed during scoring.
+    eligible, reason = is_recovery_eligible(payment)
+    if not eligible:
+        _log_audit(db, payment.payment_id, "skipped", reason)
+        return {
+            "chosen_action": None, "decision_type": "skip",
+            "reason": reason, "executed": False,
+        }
 
     if decision["decision_type"] == "human_review":
         deadline = datetime.utcnow() + timedelta(hours=settings.human_review_timeout_hours)
@@ -199,7 +208,14 @@ def human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     if not action_row:
         return {"success": False, "reason": "No pending human_review case found for this payment."}
 
-    payment = db.query(__import__("app.models.models", fromlist=["Payment"]).Payment).filter_by(payment_id=payment_id).first()
+    payment = db.query(Payment).filter_by(payment_id=payment_id).first()
+    if payment is None:
+        return {"success": False, "reason": "Payment not found."}
+
+    eligible, reason = is_recovery_eligible(payment)
+    if not eligible:
+        _log_audit(db, payment_id, "human_review_blocked", reason)
+        return {"success": False, "reason": reason}
 
     if chosen_action == "retry":
         eligible, reason = is_retry_eligible(db, payment)

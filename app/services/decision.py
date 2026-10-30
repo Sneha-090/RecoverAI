@@ -10,7 +10,7 @@ from datetime import datetime
 
 from app.config import settings
 from app.services.ml_service import predict_all_actions
-from app.services.eligibility import is_retry_eligible
+from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.models.models import Action
 
 ACTION_COSTS = {
@@ -168,11 +168,14 @@ def _persist_decision_explanation(db, payment, predictions, retry_eligible, retr
 
 def decide(db, payment) -> dict:
     """
-    Wrapper: fetches real predictions + eligibility + already-tried
-    actions, applies decide_from_predictions() to get the decision,
-    then persists the full explanation (Module A) - purely additive,
-    the returned decision is unaffected by the persistence step.
+    Reject ineligible cases before ML or scoring. For eligible cases,
+    fetch predictions and already-tried actions, decide, and persist
+    the explanation. execute_action() audits skipped cases.
     """
+    eligible, reason = is_recovery_eligible(payment)
+    if not eligible:
+        return {"chosen_action": None, "decision_type": "skip", "reason": reason}
+
     retry_eligible, retry_reason = is_retry_eligible(db, payment)
     predictions = predict_all_actions(db, payment)
     tried = get_tried_actions(db, payment.payment_id)
