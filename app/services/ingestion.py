@@ -24,11 +24,20 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
     error_reason = rp_payment.get("error_reason")
     status = rp_payment.get("status")
     method = rp_payment.get("method")
+    provider_created_at = rp_payment.get("created_at")
+    created_at = (
+        datetime.utcfromtimestamp(provider_created_at)
+        if provider_created_at is not None else None
+    )
 
     if existing:
         existing.razorpay_error_code = error_code
         existing.razorpay_error_reason = error_reason
-        existing.status = status
+        # Provider status describes the original charge, not the recovery case.
+        if existing.status not in {"recovered", "closed_unrecovered"}:
+            existing.status = status
+        if created_at is not None:
+            existing.created_at = created_at
         existing.payment_method = method
         existing.razorpay_state = status
         payment = existing
@@ -43,7 +52,7 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
             razorpay_error_reason=error_reason,
             razorpay_state=status,
             status=status,
-            created_at=datetime.utcnow(),
+            created_at=created_at or datetime.utcnow(),
         )
 
         db.add(payment)
