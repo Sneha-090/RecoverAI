@@ -8,8 +8,18 @@ from sqlalchemy.exc import IntegrityError
 from app.models.models import RecoveryReservation, WebhookReceipt
 
 
+class RecoveryInProgress(Exception):
+    """No operation was started because another request owns the payment."""
+
+
 def reserve_webhook(db, event_id):
     """Return None only for the request that committed the new claim."""
+    changed = db.query(WebhookReceipt).filter_by(event_id=event_id, state="retryable").update(
+        {"state": "processing"},
+    )
+    db.commit()
+    if changed:
+        return None
     try:
         db.add(WebhookReceipt(event_id=event_id, state="processing"))
         db.commit()

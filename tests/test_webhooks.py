@@ -114,6 +114,37 @@ def test_interrupted_webhook_is_not_blindly_replayed(client, db_session, monkeyp
     assert fetch.call_count == 1
 
 
+def test_busy_outcome_event_can_retry_after_other_request_finishes(client, db_session, monkeypatch):
+    from unittest.mock import Mock
+    from app.config import settings
+    from app.models.models import WebhookReceipt
+    from app.services.reservations import RecoveryInProgress
+    db_session.add(Payment(payment_id="pay_original", amount=1000, status="failed"))
+    db_session.add(AuditLog(
+        payment_id="pay_original", event_type="executed",
+        payload_json=json.dumps({"type": "order", "order_id": "order_recovery"}),
+    ))
+    db_session.commit()
+    observe = Mock(side_effect=[RecoveryInProgress("busy"), {"status": "recovered"}])
+    monkeypatch.setattr("app.api.webhooks.observe_outcome", observe)
+    body = json.dumps({
+        "event": "payment.captured", "payload": {"payment": {"entity": {
+            "id": "pay_recovery", "order_id": "order_recovery",
+        }}},
+    }).encode()
+    headers = {
+        "X-Razorpay-Event-Id": "evt_busy_capture",
+        "X-Razorpay-Signature": hmac.new(
+            settings.razorpay_webhook_secret.encode(), body, hashlib.sha256,
+        ).hexdigest(),
+    }
+    assert client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 503
+    assert db_session.get(WebhookReceipt, "evt_busy_capture").state == "retryable"
+    assert client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 200
+    assert db_session.get(WebhookReceipt, "evt_busy_capture").state == "processed"
+    assert observe.call_count == 2
+
+
 def test_invalid_razorpay_signature():
     body = b'{"event":"payment.failed"}'
     secret = "test_webhook_secret"

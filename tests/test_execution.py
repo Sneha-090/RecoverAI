@@ -260,7 +260,7 @@ def test_payment_link_failed_does_not_mark_payment_recovered(
         assert payment_link_id == "plink_failed_123"
         return {
             "id": "plink_failed_123",
-            "status": "created",
+            "status": "expired",
         }
 
     monkeypatch.setattr(
@@ -271,7 +271,7 @@ def test_payment_link_failed_does_not_mark_payment_recovered(
     # Force the next decision so the test does not make a real
     # Razorpay order/payment-link call.
     monkeypatch.setattr(
-        "app.services.execution.execute_action",
+        "app.services.execution._execute_action",
         lambda db, payment: {
             "chosen_action": None,
             "decision_type": "skip",

@@ -17,7 +17,7 @@ from app.models.models import (
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
 from app.services.ingestion import fetch_and_store_payment
-from app.services.reservations import reserve_webhook, finish_webhook
+from app.services.reservations import reserve_webhook, finish_webhook, RecoveryInProgress
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -272,6 +272,7 @@ async def razorpay_webhook(
             payment_description = payment_entity.get("description")
 
             original_payment_id = None
+            correlation = {}
 
             # First try order-based recovery matching.
             if recovery_order_id:
@@ -279,6 +280,8 @@ async def razorpay_webhook(
                     db,
                     recovery_order_id,
                 )
+                if original_payment_id:
+                    correlation = {"expected_order_id": recovery_order_id}
 
             # If not found, try Payment Link matching.
             if not original_payment_id and payment_description:
@@ -288,6 +291,8 @@ async def razorpay_webhook(
                         payment_description,
                     )
                 )
+                if original_payment_id:
+                    correlation = {"expected_payment_link_id": "plink_" + payment_description.strip()[1:].strip()}
 
             if not original_payment_id:
                 return {
@@ -318,6 +323,7 @@ async def razorpay_webhook(
             result = observe_outcome(
                 db,
                 original_payment,
+                **correlation,
             )
 
             _record_processed_webhook(
@@ -367,6 +373,7 @@ async def razorpay_webhook(
                 result = observe_outcome(
                     db,
                     original_payment,
+                    expected_order_id=recovery_order_id,
                 )
 
                 _record_processed_webhook(
@@ -455,6 +462,10 @@ async def razorpay_webhook(
             "executed": result["executed"],
         }
 
+    except RecoveryInProgress as exc:
+        db.rollback()
+        receipt_state = "retryable"
+        raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "30"}) from exc
     except Exception:
         if reserved:
             db.rollback()

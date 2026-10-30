@@ -14,7 +14,39 @@ from app.services.decision import decide
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
-from app.models.models import Action, AuditLog, DecisionType, ReviewStatus, Payment
+from app.models.models import Action, AuditLog, DecisionType, ReviewStatus, Payment, Outcome
+from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
+
+
+def _run_reserved(db, payment_id, operation, expected_state=None):
+    owner = reserve_recovery(db, payment_id, expected_state)
+    if owner is None:
+        raise RecoveryInProgress("An active recovery operation already exists for this payment")
+    try:
+        result = operation()
+        state = None
+        if result.get("executed") or result.get("success") or result.get("status") == "next_action_attempted":
+            state = "awaiting_outcome"
+        elif result.get("decision_type") == "human_review" or result.get("status") == "escalated_to_human_review":
+            state = "pending_review"
+        elif result.get("status") == "awaiting_outcome":
+            state = "awaiting_outcome"
+        elif result.get("status") == "pending_review":
+            state = "pending_review"
+        finish_recovery(db, payment_id, owner, state)
+        return result
+    except Exception:
+        db.rollback()
+        finish_recovery(db, payment_id, owner, "needs_reconciliation")
+        raise
+
+
+def _busy_result():
+    return {
+        "chosen_action": None, "decision_type": "pending",
+        "reason": "An active recovery action already exists; no new action created",
+        "executed": False, "status": "already_processing",
+    }
 
 
 def _log_audit(db, payment_id, event_type, reason, payload=None):
@@ -30,6 +62,30 @@ def _log_audit(db, payment_id, event_type, reason, payload=None):
 
 
 def execute_action(db, payment) -> dict:
+    try:
+        return _run_reserved(db, payment.payment_id, lambda: _execute_action(db, payment))
+    except RecoveryInProgress:
+        return _busy_result()
+
+
+def _execute_action(db, payment) -> dict:
+    db.refresh(payment)
+    # Also recognize work created before reservation tables were installed.
+    pending = db.query(Action).filter_by(
+        payment_id=payment.payment_id, decision_type=DecisionType.human_review,
+        review_status=ReviewStatus.pending,
+    ).first()
+    if pending:
+        return {**_busy_result(), "status": "pending_review"}
+    unfinished = db.query(Action).outerjoin(
+        Outcome,
+        (Outcome.payment_id == Action.payment_id) & (Outcome.action_type == Action.action_type),
+    ).filter(
+        Action.payment_id == payment.payment_id, Action.decision_type == DecisionType.auto,
+        Outcome.id.is_(None),
+    ).first()
+    if unfinished:
+        return {**_busy_result(), "status": "awaiting_outcome"}
     decision = decide(db, payment)
 
     if decision["decision_type"] == "skip":
@@ -124,27 +180,44 @@ def _get_last_execution_payload(db, payment_id: str):
 
 
 def _check_real_outcome(payload: dict) -> str:
-    """Returns 'success' or 'failed' by checking real Razorpay state."""
+    """Unpaid/open attempts remain pending rather than starting another action."""
     if payload["type"] == "order":
         payments = client.order.payments(payload["order_id"])
         items = payments.get("items", [])
         if any(p.get("status") == "captured" for p in items):
             return "success"
-        return "failed"
+        return "failed" if items and all(p.get("status") == "failed" for p in items) else "pending"
 
     if payload["type"] == "payment_link":
         link = client.payment_link.fetch(payload["payment_link_id"])
         if link.get("status") == "paid":
             return "success"
-        return "failed"
+        return "failed" if link.get("status") in {"cancelled", "expired"} else "pending"
 
-    return "failed"
+    raise ValueError("Unknown recovery payload type")
 
 
-def observe_outcome(db, payment) -> dict:
+def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None) -> dict:
+    return _run_reserved(
+        db, payment.payment_id,
+        lambda: _observe_outcome(db, payment, expected_order_id, expected_payment_link_id),
+        "awaiting_outcome",
+    )
+
+
+def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None) -> dict:
+    db.refresh(payment)
     payload = _get_last_execution_payload(db, payment.payment_id)
     if not payload:
         return {"status": "no_prior_execution", "reason": "no executed action found to observe"}
+
+    if payment.status == "recovered":
+        return {"status": "recovered"}
+    if (
+        (expected_order_id and payload.get("order_id") != expected_order_id)
+        or (expected_payment_link_id and payload.get("payment_link_id") != expected_payment_link_id)
+    ):
+        return {"status": "awaiting_outcome", "reason": "Event belongs to a different recovery attempt"}
 
     last_action = (
         db.query(Action)
@@ -154,6 +227,8 @@ def observe_outcome(db, payment) -> dict:
     )
 
     result = _check_real_outcome(payload)
+    if result == "pending":
+        return {"status": "awaiting_outcome", "reason": "Provider has not reported a terminal outcome"}
 
     from app.models.models import Outcome
     outcome_row = Outcome(
@@ -173,7 +248,8 @@ def observe_outcome(db, payment) -> dict:
     db.commit()
     _log_audit(db, payment.payment_id, "attempt_failed", f"{last_action.action_type} did not recover the payment")
 
-    next_decision = execute_action(db, payment)
+    # Keep ownership while advancing to the next action.
+    next_decision = _execute_action(db, payment)
 
     if next_decision["decision_type"] == "skip":
         payment.status = "closed_unrecovered"
@@ -190,6 +266,15 @@ def observe_outcome(db, payment) -> dict:
 
     return {"status": "next_action_attempted", "next": next_decision}
 def human_review_action(db, payment_id: str, chosen_action: str) -> dict:
+    try:
+        return _run_reserved(
+            db, payment_id, lambda: _human_review_action(db, payment_id, chosen_action), "pending_review",
+        )
+    except RecoveryInProgress as exc:
+        return {"success": False, "reason": str(exc)}
+
+
+def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     """
     Business-user-driven approval: takes the human's chosen action
     (which may or may not match the ML's original recommendation) for
@@ -208,6 +293,13 @@ def human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     if not action_row:
         return {"success": False, "reason": "No pending human_review case found for this payment."}
 
+    if chosen_action not in {"retry", "payment_link", "alt_method"}:
+        return {"success": False, "status": "pending_review", "reason": "Unknown recovery action."}
+    if action_row.review_deadline and action_row.review_deadline <= datetime.utcnow():
+        action_row.review_status = ReviewStatus.expired
+        db.commit()
+        return {"success": False, "reason": "Human review deadline has passed."}
+
     payment = db.query(Payment).filter_by(payment_id=payment_id).first()
     if payment is None:
         return {"success": False, "reason": "Payment not found."}
@@ -215,12 +307,12 @@ def human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     eligible, reason = is_recovery_eligible(payment)
     if not eligible:
         _log_audit(db, payment_id, "human_review_blocked", reason)
-        return {"success": False, "reason": reason}
+        return {"success": False, "status": "pending_review", "reason": reason}
 
     if chosen_action == "retry":
         eligible, reason = is_retry_eligible(db, payment)
         if not eligible:
-            return {"success": False, "reason": f"Retry not eligible: {reason}"}
+            return {"success": False, "status": "pending_review", "reason": f"Retry not eligible: {reason}"}
         result = create_test_order(payment.amount, receipt=f"human_{payment_id}_{datetime.utcnow().timestamp():.0f}")
         payload = {"type": "order", "order_id": result["id"]}
     else:
