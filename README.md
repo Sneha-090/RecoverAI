@@ -200,6 +200,20 @@ This makes the system optimize for **expected recoverable value**, rather than s
 
 RecoverAI does not allow the ML model to operate without constraints.
 
+Every recovery action first passes a case-wide eligibility check. Cases with
+`captured`, `authorized`, `recovered`, or `closed_unrecovered` status (or provider
+state) are skipped before ML prediction or action scoring. The recovery window
+expires exactly `max_recovery_window_days` after the payment creation time;
+this applies to retries, payment links, alternate methods, and human approvals.
+Missing creation times also block recovery. Blocked executions record a reason
+in the audit log without creating an order or link.
+
+Payment ingestion uses Razorpay's creation timestamp when supplied, so importing
+an old payment does not restart its recovery window. Re-fetching the original
+charge preserves a case's `recovered` or `closed_unrecovered` status. Retry-only
+restrictions, such as the `halted` state, still allow eligible customer-assisted
+recovery through a payment link or alternate method.
+
 Examples of bounded policies include:
 
 ```text
