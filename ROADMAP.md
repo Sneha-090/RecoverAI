@@ -21,7 +21,8 @@ verified in this review.
   current attempt. This is protection against advancing the wrong attempt, not
   complete historical outcome attribution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
-  regression tests. Total local suite: 138 passing tests as of this review.
+  regression tests. Total local suite including authentication coverage:
+  178 passing tests as of this review.
 - Grouped synthetic evaluation: 1,600 training contexts, 400 held-out contexts,
   zero overlap. Stored model/data hashes, baseline, probability-quality metrics,
   and calibration diagnostics in `ML/evaluation.json`.
@@ -30,20 +31,20 @@ verified in this review.
 
 ## Fix before a public deployment
 
-### 1. Access control and input validation
+### 1. Access control and input validation (implemented and tested)
 
-Evidence: `app/main.py` exposes `/create-order`, `/process-payment`, and payment
-lookup without authentication; state-changing routes use GET and CORS allows
-every origin. `dashboard.py` exposes approvals without an application login.
+Implemented: configured single-operator HTTP Basic protection, salted password
+hashing, dashboard login/logout with session expiry, POST changes, bounded input
+schemas, and explicit CORS/browser-origin restrictions. The protected same-origin
+checkout loads order amount/currency and the public key ID from the backend;
+credentials are not embedded in its source. Signed webhooks remain separate.
 
-Implement authenticated operator access, authorization on payment operations,
-POST requests for changes, bounded request fields, and explicit allowed origins.
-Update `scripts/checkout.html` with the changed routes. Browser code must not
-contain a shared operator/backend secret. Keep signed webhook verification as a
-separate provider authentication mechanism.
-
-Done when unauthorized calls cannot create or process payment actions, invalid
-amounts/IDs are rejected before provider calls, and the checkout demo still works.
+Unauthorized access and invalid inputs are covered by API tests. Dashboard tests
+exercise hidden content, rejected login, successful login/logout, session expiry,
+and credential rotation. A real browser/Razorpay checkout still needs a manual
+test with configured test-mode credentials. This single-operator implementation
+still needs HTTPS and external rate limiting before public deployment; future
+multi-operator roles and identity-provider integration remain separate work.
 
 ### 2. Exact attribution and reconciliation
 
@@ -143,5 +144,5 @@ its limitations. Do not describe synthetic revenue as merchant revenue, a test
 checkout as a production deployment, or probabilistic predictions as guaranteed
 recovery.
 
-Recommended next implementation: access control and validated POST endpoints,
-then exact execution/outcome attribution and reconciliation.
+Recommended next implementation: exact execution/outcome attribution and
+reconciliation, plus manual test-mode checkout verification after operator setup.

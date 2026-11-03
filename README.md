@@ -880,15 +880,61 @@ DATABASE_URL=sqlite:///./recoverai.db
 
 HUMAN_REVIEW_TIMEOUT_HOURS=24
 MAX_RECOVERY_WINDOW_DAYS=14
+OPERATOR_USERNAME=
+OPERATOR_PASSWORD_HASH=
+OPERATOR_SESSION_HOURS=8
+API_BASE_URL=http://127.0.0.1:8000
+ALLOWED_ORIGINS=[]
 ```
 
 Never commit real API credentials or webhook secrets.
+
+### 5. Configure Operator Access
+
+Run `python -m scripts.hash_password`. Enter and confirm a strong password of at
+least 12 characters. Copy the generated hash into `OPERATOR_PASSWORD_HASH` in
+your local `.env`, and choose an `OPERATOR_USERNAME`. Use ASCII credentials for
+the browser's HTTP Basic prompt. The command does not require merchant keys and
+never prints the password. Do not put credentials in Git, URLs, or browser code.
+
+The API uses HTTP Basic authentication for operator endpoints. The dashboard
+has a separate login form using the same configured operator credentials, an
+eight-hour session by default, and a logout control. It stops before database
+queries or approvals when unauthenticated. Missing auth settings disable access
+instead of enabling an anonymous demo mode.
+
+This is a single-operator demo, not a multi-user identity system. Use HTTPS and
+reverse-proxy rate limiting before exposing it remotely. Dashboard logout clears
+the dashboard session; browsers manage cached HTTP Basic credentials separately.
+Signed Razorpay webhooks and `/health` do not require operator credentials.
+
+Protected API operations:
+
+| Route | Request |
+|---|---|
+| `POST /create-order` | JSON `{"amount": "499.00"}` |
+| `POST /process-payment` | JSON `{"payment_id": "pay_..."}` |
+| `POST /predict` | Validated prediction inputs |
+| `GET /latest-payment-for-order` | Valid Razorpay order ID |
+| `GET /checkout` | Operator checkout page |
+| `GET /checkout-config` | Order details and public Razorpay key ID |
+
+Use **Authorize** in `/docs` to enter the operator credentials. The former GET
+order-creation/payment-processing routes now return 405; clients must send POST
+JSON. Amounts must be positive, no more than Rs.10,000,000, and have at most two
+decimal places. Unknown request fields, malformed IDs, invalid action names, and
+out-of-range prediction values are rejected before provider calls.
+
+Cross-origin access is denied by default. If a separate trusted frontend is
+needed, configure `ALLOWED_ORIGINS` as a JSON array of its exact origins and
+restart the API. Same-origin checkout requires no CORS entries. Untrusted browser
+origins cannot submit payment mutations even if the browser has cached credentials.
 
 ---
 
 ## Running the Project
 
-RecoverAI's complete local demo uses the FastAPI backend, ngrok for webhook tunneling, a local checkout server, and the Streamlit dashboard.
+RecoverAI's complete local demo uses the FastAPI backend, ngrok for webhook tunneling, and the Streamlit dashboard. FastAPI also serves the protected checkout page.
 
 ### Start FastAPI
 
@@ -947,19 +993,21 @@ http://localhost:8501
 
 ### Start the Local Checkout Page
 
-The current demo uses the existing local checkout page:
+Open the protected checkout page and enter operator credentials when prompted:
 
 ```text
-http://127.0.0.1:5500/scripts/checkout.html
+http://127.0.0.1:8000/checkout
 ```
 
-To serve the project directory locally, run from the project root:
+No separate file server is needed. Do not serve the repository root with a
+generic file server; it can expose local configuration files.
 
-```bash
-python -m http.server 5500
-```
-
-The dashboard's retry link opens the generated recovery order through this checkout page.
+The dashboard's retry link opens the generated recovery order through this page.
+You can load an existing order ID or create a test order using the protected
+POST endpoint. The page fetches the order's authoritative amount/currency and
+public key ID from the backend; an amount supplied in a URL is not trusted.
+It embeds no merchant secret or shared operator password. Checkout currently
+supports test-mode keys only. Signed webhooks process the actual outcome.
 
 ---
 
