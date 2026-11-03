@@ -24,6 +24,7 @@ from app.models.models import (
     ReviewStatus,
 )
 from app.services.execution import human_review_action
+from app.ui.operator_login import require_dashboard_operator
 from app.services.reporting import (
     compute_impact_metrics,
     compute_naive_blanket_retry_baseline,
@@ -40,6 +41,8 @@ st.set_page_config(
 )
 
 st.title("RecoverAI — Recovery Dashboard")
+
+require_dashboard_operator()
 
 db = SessionLocal()
 
@@ -266,7 +269,7 @@ with tab_live:
                 recovery_action_found = True
 
                 checkout_url = (
-                    "http://127.0.0.1:5500/scripts/checkout.html"
+                    f"{settings.api_base_url.rstrip('/')}/checkout"
                     f"?order_id={recovery['order_id']}"
                     f"&amount={payment.amount}"
                 )
