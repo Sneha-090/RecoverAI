@@ -2,6 +2,9 @@
 
 [![Tests and ML evaluation](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml/badge.svg)](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml)
 
+See [the verified status and improvement plan](ROADMAP.md) for remaining gaps,
+priorities, acceptance criteria, and evidence-backed resume claims.
+
 RecoverAI is an AI-assisted revenue recovery system for failed Razorpay payments.
 
 Instead of treating every failed payment with the same retry strategy, RecoverAI:
