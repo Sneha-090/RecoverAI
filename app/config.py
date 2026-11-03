@@ -1,3 +1,4 @@
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,6 +8,12 @@ class Settings(BaseSettings):
     razorpay_webhook_secret: str
 
     database_url: str = "sqlite:///./recoverai.db"
+
+    operator_username: str = ""
+    operator_password_hash: SecretStr = SecretStr("")
+    operator_session_hours: int = Field(default=8, ge=1, le=24)
+    allowed_origins: list[str] = []
+    api_base_url: str = "http://127.0.0.1:8000"
 
     human_review_timeout_hours: int = 24
     max_recovery_window_days: int = 14

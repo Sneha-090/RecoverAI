@@ -1,7 +1,14 @@
 from app.api.webhooks import router as webhook_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi import Depends, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
+from pathlib import Path
+from decimal import Decimal
+from typing import Annotated, Literal
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
+
+from app.api.auth import require_operator
 
 from app.config import settings
 from app.db.session import SessionLocal
@@ -16,10 +23,34 @@ app.include_router(webhook_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=settings.allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+PROTECTED = [Depends(require_operator)]
+PAYMENT_ID = r"^pay_[A-Za-z0-9]{1,64}$"
+ORDER_ID = r"^order_[A-Za-z0-9]{1,64}$"
+
+
+@app.middleware("http")
+async def protect_browser_mutations(request: Request, call_next):
+    origin = request.headers.get("origin")
+    if request.method == "POST" and request.url.path in {"/create-order", "/process-payment", "/predict"}:
+        same_origin = f"{request.url.scheme}://{request.url.netloc}"
+        if origin and origin != same_origin and origin not in settings.allowed_origins:
+            return JSONResponse(status_code=403, content={"detail": "Untrusted request origin"})
+    return await call_next(request)
+
+
+class OrderRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    amount: Decimal = Field(gt=0, le=10_000_000, max_digits=10, decimal_places=2, allow_inf_nan=False)
+
+
+class ProcessPaymentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    payment_id: str = Field(pattern=PAYMENT_ID)
 
 
 @app.get("/health")
@@ -31,18 +62,18 @@ def health():
     }
 
 
-@app.get("/create-order")
-def create_order(amount: float):
+@app.post("/create-order", dependencies=PROTECTED)
+def create_order(request: OrderRequest):
     """
     Creates a real Razorpay test-mode Order for the given amount (in
     rupees) and returns its order_id.
     """
-    order = create_test_order(amount_rupees=amount, receipt=f"recoverai_{int(amount)}")
+    order = create_test_order(amount_rupees=request.amount, receipt=f"recoverai_{int(request.amount)}")
     return {"order_id": order["id"], "amount_paise": order["amount"]}
 
 
-@app.get("/process-payment")
-def process_payment(payment_id: str):
+@app.post("/process-payment", dependencies=PROTECTED)
+def process_payment(request: ProcessPaymentRequest):
     """
     Full pipeline, triggered automatically after a checkout attempt:
     fetch real payment from Razorpay -> diagnose -> execute_action()
@@ -52,7 +83,7 @@ def process_payment(payment_id: str):
     """
     db = SessionLocal()
     try:
-        payment = fetch_and_store_payment(db, payment_id)
+        payment = fetch_and_store_payment(db, request.payment_id)
         diagnosis = diagnose_and_store(db, payment)
 
         result = execute_action(db, payment)
@@ -79,15 +110,19 @@ def process_payment(payment_id: str):
 # -----------------------------
 
 class RecoveryRequest(BaseModel):
-    amount: float
-    cause: str
-    attempts: int
-    days_since_failure: int
-    past_rate: float
-    action_type: str
+    model_config = ConfigDict(extra="forbid")
+    amount: FiniteFloat = Field(gt=0, le=10_000_000)
+    cause: Literal[
+        "network_error", "insufficient_funds", "bank_declined", "card_declined",
+        "expired_card", "invalid_card", "authentication_failed", "customer_cancelled", "unclassified_error",
+    ]
+    attempts: int = Field(ge=0, le=10_000)
+    days_since_failure: int = Field(ge=0, le=36_500)
+    past_rate: FiniteFloat = Field(ge=0, le=1)
+    action_type: Literal["retry", "payment_link", "alt_method"]
 
 
-@app.post("/predict")
+@app.post("/predict", dependencies=PROTECTED)
 def predict(request: RecoveryRequest):
     probability = predict_recovery(
         amount=request.amount,
@@ -101,8 +136,8 @@ def predict(request: RecoveryRequest):
         "recovery_probability": probability,
         "recovery_percentage": round(probability * 100, 2),
     }
-@app.get("/latest-payment-for-order")
-def latest_payment_for_order(order_id: str):
+@app.get("/latest-payment-for-order", dependencies=PROTECTED)
+def latest_payment_for_order(order_id: Annotated[str, Query(pattern=ORDER_ID)]):
     """
     Recovers the payment_id for an order even if the browser reloaded
     mid-flow (e.g. redirect-based payment methods like netbanking) -
@@ -116,3 +151,18 @@ def latest_payment_for_order(order_id: str):
     # most recent attempt
     latest = sorted(items, key=lambda p: p.get("created_at", 0), reverse=True)[0]
     return {"payment_id": latest["id"]}
+
+
+@app.get("/checkout", dependencies=PROTECTED)
+def checkout():
+    return FileResponse(Path(__file__).resolve().parents[1] / "scripts/checkout.html")
+
+
+@app.get("/checkout-config", dependencies=PROTECTED)
+def checkout_config(order_id: Annotated[str, Query(pattern=ORDER_ID)]):
+    from app.services.razorpay_client import client
+    order = client.order.fetch(order_id)
+    return {
+        "key_id": settings.razorpay_key_id,
+        "order_id": order["id"], "amount_paise": order["amount"], "currency": order["currency"],
+    }
