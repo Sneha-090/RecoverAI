@@ -1,5 +1,7 @@
 # RecoverAI — AI-Assisted Revenue Recovery Agent
 
+[![Tests and ML evaluation](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml/badge.svg)](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml)
+
 RecoverAI is an AI-assisted revenue recovery system for failed Razorpay payments.
 
 Instead of treating every failed payment with the same retry strategy, RecoverAI:
@@ -1034,6 +1036,17 @@ The tests cover areas including:
 - Synthetic-data sanity checks
 
 The test suite currently reports deprecation and joblib-related warnings in addition to the passing test results.
+
+Unit tests configure dummy Razorpay credentials and an in-memory default
+database in `tests/conftest.py`; a local `.env` file or merchant keys are not
+required to run `python -m pytest -q`. Individual database tests use isolated
+in-memory or temporary databases.
+
+GitHub Actions runs regression tests and retrains/evaluates the model on every
+push to `main` and every pull request. Test results and the generated synthetic
+evaluation report are available as `validation-reports` artifacts on the
+[Actions page](https://github.com/Sneha-090/RecoverAI/actions). Training output in
+CI goes to temporary files and does not overwrite the checked-in model.
 
 ---
 

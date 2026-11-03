@@ -55,6 +55,7 @@ def test_training_produces_reloadable_model_and_verifiable_report(tmp_path):
     assert sum(map(sum, report["model"]["confusion_matrix"])) == len(test)
     assert report["classification_threshold"] == 0.5
     assert 0 <= report["training_prior_baseline"]["brier_score"] <= 1
+    assert report["model"]["brier_score"] < report["training_prior_baseline"]["brier_score"]
 
 
 def test_unknown_failure_cause_still_has_finite_predictions(tmp_path):
