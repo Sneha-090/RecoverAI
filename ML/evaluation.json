@@ -1,0 +1,105 @@
+{
+  "data_scope": "synthetic_only; no production accuracy or revenue-uplift claim",
+  "evaluated_at_utc": "2026-11-03T16:43:05.520449+00:00",
+  "dataset_sha256": "8278739e55f0787ca47a024bebf7c7e33c5808d4311c72c59e2f7b83ecb49e2b",
+  "sklearn_version": "1.9.0",
+  "split": {
+    "method": "GroupShuffleSplit",
+    "group_column": "customer_id",
+    "seed": 42,
+    "train_rows": 4800,
+    "test_rows": 1200,
+    "train_contexts": 1600,
+    "test_contexts": 400,
+    "overlapping_contexts": 0,
+    "train_positive_rate": 0.25625,
+    "test_positive_rate": 0.2625
+  },
+  "classification_threshold": 0.5,
+  "threshold_policy": "Fixed in advance; test set is not used for threshold selection",
+  "model": {
+    "accuracy": 0.7608333333333334,
+    "precision": 0.6147540983606558,
+    "recall": 0.23809523809523808,
+    "f1": 0.34324942791762014,
+    "roc_auc": 0.7605990494126087,
+    "average_precision": 0.5156875988773879,
+    "brier_score": 0.16217954697728035,
+    "log_loss": 0.491474639883097,
+    "confusion_matrix": [
+      [
+        838,
+        47
+      ],
+      [
+        240,
+        75
+      ]
+    ]
+  },
+  "training_prior_baseline": {
+    "accuracy": 0.7375,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "roc_auc": 0.5,
+    "average_precision": 0.2625,
+    "brier_score": 0.1936328125,
+    "log_loss": 0.5757575715541933,
+    "confusion_matrix": [
+      [
+        885,
+        0
+      ],
+      [
+        315,
+        0
+      ]
+    ]
+  },
+  "calibration_bins": [
+    {
+      "mean_predicted_probability": 0.06752115490576852,
+      "observed_recovery_fraction": 0.05429864253393665
+    },
+    {
+      "mean_predicted_probability": 0.15138188041371925,
+      "observed_recovery_fraction": 0.13043478260869565
+    },
+    {
+      "mean_predicted_probability": 0.24735398874105546,
+      "observed_recovery_fraction": 0.2804878048780488
+    },
+    {
+      "mean_predicted_probability": 0.344233215138681,
+      "observed_recovery_fraction": 0.36257309941520466
+    },
+    {
+      "mean_predicted_probability": 0.4474838376462931,
+      "observed_recovery_fraction": 0.4661016949152542
+    },
+    {
+      "mean_predicted_probability": 0.5492225023391929,
+      "observed_recovery_fraction": 0.5789473684210527
+    },
+    {
+      "mean_predicted_probability": 0.6458741212101602,
+      "observed_recovery_fraction": 0.6382978723404256
+    },
+    {
+      "mean_predicted_probability": 0.7529588949368144,
+      "observed_recovery_fraction": 0.6363636363636364
+    },
+    {
+      "mean_predicted_probability": 0.813943425635976,
+      "observed_recovery_fraction": 0.7142857142857143
+    }
+  ],
+  "limitations": [
+    "Synthetic outcomes do not validate real merchant performance.",
+    "Calibration bins are diagnostic; the model has not been recalibrated.",
+    "The saved estimator is fitted on the training partition only.",
+    "Existing dashboard revenue simulations are not this held-out ML evaluation."
+  ],
+  "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d"
+}

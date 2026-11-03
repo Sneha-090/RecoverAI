@@ -1,200 +1,135 @@
+"""Train on disjoint synthetic customer contexts: python -m ML.train_model."""
+
+import argparse
+import hashlib
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
 import joblib
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix,
-    classification_report
-)
-
-
+import numpy as np
 import pandas as pd
-
-from sklearn.model_selection import train_test_split
+import sklearn
+from sklearn.calibration import calibration_curve
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.pipeline import Pipeline
+from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
-
-df = pd.read_csv("data/synthetic_payments.csv")
-
-print("Dataset shape:", df.shape)
-print("\nColumns:")
-print(df.columns.tolist())
-
-print("\nFirst 5 rows:")
-print(df.head())
-
-# -----------------------------
-# Separate features and target
-# -----------------------------
-
-X = df.drop(columns=["customer_id", "recovered"]).copy()
-y = df["recovered"]
-
-# Explicit cause × action interaction.
-# RecoverAI needs to learn that the best recovery action
-# depends on the payment failure cause.
-X["cause_action"] = X["cause"] + "__" + X["action_type"]
-
-print("\nFeature columns:")
-print(X.columns.tolist())
-
-print("\nTarget:")
-print(y.name)
-
-print("\nFeature shape:", X.shape)
-print("Target shape:", y.shape)
-# -----------------------------
-# Train / Test Split
-# -----------------------------
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42,
-    stratify=y
+from sklearn.metrics import (
+    accuracy_score, average_precision_score, brier_score_loss, confusion_matrix,
+    f1_score, log_loss, precision_score, recall_score, roc_auc_score,
 )
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-print("\nTraining data:")
-print("X_train:", X_train.shape)
-print("y_train:", y_train.shape)
 
-print("\nTesting data:")
-print("X_test:", X_test.shape)
-print("y_test:", y_test.shape)
-# -----------------------------
-# Define categorical & numerical columns
-# -----------------------------
+ROOT = Path(__file__).resolve().parents[1]
+CATEGORICAL = ["cause", "action_type", "cause_action"]
+NUMERICAL = ["amount", "attempts", "days_since_failure", "past_rate"]
 
-categorical_features = [
-    "cause",
-    "action_type",
-    "cause_action"
-]
 
-numerical_features = [
-    "amount",
-    "attempts",
-    "days_since_failure",
-    "past_rate"
-]
+def prepare_features(frame):
+    features = frame[["cause", "action_type", *NUMERICAL]].copy()
+    features["cause_action"] = features["cause"] + "__" + features["action_type"]
+    return features
 
-# -----------------------------
-# One-Hot Encoding
-# -----------------------------
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        (
-            "categorical",
-            OneHotEncoder(handle_unknown="ignore"),
-            categorical_features
-        ),
-        (
-            "numerical",
-              StandardScaler(),
-            numerical_features
-        )
-    ]
-)
+def split_contexts(frame, seed=42):
+    if frame["customer_id"].isna().any() or frame["customer_id"].nunique() < 2:
+        raise ValueError("At least two non-null customer/context groups are required")
+    splitter = GroupShuffleSplit(n_splits=1, test_size=0.2, random_state=seed)
+    train_indices, test_indices = next(splitter.split(frame, groups=frame["customer_id"]))
+    train, test = frame.iloc[train_indices].copy(), frame.iloc[test_indices].copy()
+    if train["recovered"].nunique() != 2 or test["recovered"].nunique() != 2:
+        raise ValueError("Both partitions must contain recovered and unrecovered outcomes")
+    return train, test
 
-print("\nCategorical features:")
-print(categorical_features)
 
-print("\nNumerical features:")
-print(numerical_features)
+def build_model(seed=42):
+    return Pipeline([
+        ("preprocessor", ColumnTransformer([
+            ("categorical", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL),
+            ("numerical", StandardScaler(), NUMERICAL),
+        ])),
+        ("classifier", LogisticRegression(max_iter=1000, random_state=seed)),
+    ])
 
-print("\nPreprocessor created successfully.")
-# -----------------------------
-# Create Logistic Regression pipeline
-# -----------------------------
-model = Pipeline(
-    steps=[
-        ("preprocessor", preprocessor),
-        ("classifier", LogisticRegression(
-            max_iter=1000,
-            random_state=42
-        ))
-    ]
-)
 
-print("\nLogistic Regression pipeline created.")
-# -----------------------------
-# Train the model
-# -----------------------------
+def evaluate_probabilities(target, probabilities):
+    predicted = np.asarray(probabilities) >= 0.5
+    return {
+        "accuracy": float(accuracy_score(target, predicted)),
+        "precision": float(precision_score(target, predicted, zero_division=0)),
+        "recall": float(recall_score(target, predicted, zero_division=0)),
+        "f1": float(f1_score(target, predicted, zero_division=0)),
+        "roc_auc": float(roc_auc_score(target, probabilities)),
+        "average_precision": float(average_precision_score(target, probabilities)),
+        "brier_score": float(brier_score_loss(target, probabilities)),
+        "log_loss": float(log_loss(target, probabilities, labels=[0, 1])),
+        "confusion_matrix": confusion_matrix(target, predicted, labels=[0, 1]).tolist(),
+    }
 
-model.fit(X_train, y_train)
 
-print("Model training completed.")
+def train_and_evaluate(dataset, model_path, report_path, seed=42):
+    dataset, model_path, report_path = map(Path, (dataset, model_path, report_path))
+    frame = pd.read_csv(dataset)
+    if frame["recovered"].isna().any() or set(frame["recovered"].unique()) != {0, 1}:
+        raise ValueError("The recovered target must contain only 0 and 1")
+    train, test = split_contexts(frame, seed)
+    train_x, test_x = prepare_features(train), prepare_features(test)
+    model = build_model(seed).fit(train_x, train["recovered"])
+    probabilities = model.predict_proba(test_x)[:, 1]
+    baseline = DummyClassifier(strategy="prior").fit(train_x, train["recovered"])
+    baseline_probabilities = baseline.predict_proba(test_x)[:, 1]
+    observed, predicted = calibration_curve(test["recovered"], probabilities, n_bins=10, strategy="uniform")
+    train_groups, test_groups = set(train["customer_id"]), set(test["customer_id"])
+    report = {
+        "data_scope": "synthetic_only; no production accuracy or revenue-uplift claim",
+        "evaluated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "dataset_sha256": hashlib.sha256(dataset.read_bytes()).hexdigest(),
+        "sklearn_version": sklearn.__version__,
+        "split": {
+            "method": "GroupShuffleSplit", "group_column": "customer_id", "seed": seed,
+            "train_rows": len(train), "test_rows": len(test),
+            "train_contexts": len(train_groups), "test_contexts": len(test_groups),
+            "overlapping_contexts": len(train_groups & test_groups),
+            "train_positive_rate": float(train["recovered"].mean()),
+            "test_positive_rate": float(test["recovered"].mean()),
+        },
+        "classification_threshold": 0.5,
+        "threshold_policy": "Fixed in advance; test set is not used for threshold selection",
+        "model": evaluate_probabilities(test["recovered"], probabilities),
+        "training_prior_baseline": evaluate_probabilities(test["recovered"], baseline_probabilities),
+        "calibration_bins": [
+            {"mean_predicted_probability": float(p), "observed_recovery_fraction": float(y)}
+            for p, y in zip(predicted, observed)
+        ],
+        "limitations": [
+            "Synthetic outcomes do not validate real merchant performance.",
+            "Calibration bins are diagnostic; the model has not been recalibrated.",
+            "The saved estimator is fitted on the training partition only.",
+            "Existing dashboard revenue simulations are not this held-out ML evaluation.",
+        ],
+    }
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, model_path)
+    report["model_sha256"] = hashlib.sha256(model_path.read_bytes()).hexdigest()
+    report_path.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    return report
 
-# -----------------------------
-# Save trained model
-# -----------------------------
 
-model_path = "ML/recovery_model.joblib"
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset", type=Path, default=ROOT / "data/synthetic_payments.csv")
+    parser.add_argument("--model", type=Path, default=ROOT / "ML/recovery_model.joblib")
+    parser.add_argument("--report", type=Path, default=ROOT / "ML/evaluation.json")
+    args = parser.parse_args()
+    report = train_and_evaluate(args.dataset, args.model, args.report)
+    print(json.dumps({"split": report["split"], "model": report["model"],
+                      "baseline": report["training_prior_baseline"]}, indent=2))
+    print(f"Saved model: {args.model}\nSaved report: {args.report}")
 
-joblib.dump(model, model_path)
 
-print(f"Model saved to: {model_path}")
-# -----------------------------
-# Make predictions on test data
-# -----------------------------
-
-y_pred = model.predict(X_test)
-
-y_probability = model.predict_proba(X_test)[:, 1]
-
-print("\nFirst 10 predictions:")
-print(y_pred[:10])
-
-print("\nFirst 10 recovery probabilities:")
-print(y_probability[:10])
-
-# -----------------------------
-# Evaluate the model
-# -----------------------------
-
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred)
-recall = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-
-print("\nModel Performance:")
-print("Accuracy :", round(accuracy, 3))
-print("Precision:", round(precision, 3))
-print("Recall   :", round(recall, 3))
-print("F1 Score :", round(f1, 3))
-
-print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
-
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred))
-
-print("\nProbability statistics:")
-print(pd.Series(y_probability).describe())
-
-print("\nNumber of predictions above thresholds:")
-
-for threshold in [0.3, 0.4, 0.5, 0.6, 0.7]:
-    count = (y_probability >= threshold).sum()
-    print(f"Threshold {threshold}: {count} cases")
-
-print("\nThreshold Analysis:")
-
-for threshold in [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]:
-    threshold_pred = (y_probability >= threshold).astype(int)
-
-    precision_t = precision_score(y_test, threshold_pred, zero_division=0)
-    recall_t = recall_score(y_test, threshold_pred, zero_division=0)
-    f1_t = f1_score(y_test, threshold_pred, zero_division=0)
-
-    print(
-        f"Threshold {threshold:.2f} | "
-        f"Precision: {precision_t:.3f} | "
-        f"Recall: {recall_t:.3f} | "
-        f"F1: {f1_t:.3f}"
-    )
+if __name__ == "__main__":
+    main()

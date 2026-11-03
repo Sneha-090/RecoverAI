@@ -1077,18 +1077,33 @@ The synthetic customer-history generation is used to derive `past_rate` from sim
 
 ### Model Evaluation
 
-The model is evaluated using classification metrics and threshold analysis.
+Evaluation keeps all three action rows for a customer context in the same
+partition using `GroupShuffleSplit`. The saved model is trained on 1,600 contexts
+(4,800 rows) and tested on 400 unseen contexts (1,200 rows), with zero overlapping
+contexts. The classification threshold is fixed at 0.5 before testing; the
+holdout is not used for threshold selection.
 
-A recent training run produced approximately:
+| Held-out synthetic metric | Logistic regression | Training-prior baseline |
+|---|---:|---:|
+| ROC-AUC | 0.761 | 0.500 |
+| Average precision | 0.516 | 0.263 |
+| Brier score (lower is better) | 0.162 | 0.194 |
+| Accuracy | 76.1% | 73.8% |
+| Precision at 0.5 | 61.5% | 0.0% |
+| Recall at 0.5 | 23.8% | 0.0% |
+| F1 at 0.5 | 34.3% | 0.0% |
 
-```text
-Accuracy  : 76.6%
-Precision : 61.3%
-Recall    : 24.6%
-F1 Score  : 35.1%
-```
+The baseline predicts the training recovery prevalence for every row. Its 0.5
+classification threshold yields no positive predictions. Low model recall at
+this threshold is a limitation; accuracy alone is insufficient. The recovery
+engine consumes probabilities and applies its own cost and review rules.
 
-These figures are based on the project's synthetic evaluation data and should not be interpreted as production accuracy.
+Reproduce with `python -m ML.train_model` (no payment credentials required).
+`ML/evaluation.json` records full metrics, calibration bins, data/model hashes,
+split counts, seed, and scikit-learn version. Calibration bins are diagnostic;
+the model has not been recalibrated. These results describe synthetic data only,
+not real merchant performance or revenue uplift. Older dashboard simulation
+results use a different evaluation procedure and are not this held-out benchmark.
 
 The ML prediction is one component of the decision process rather than the sole decision-maker.
 
