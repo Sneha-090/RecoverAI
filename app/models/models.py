@@ -177,3 +177,18 @@ class ExecutionOutcome(Base):
 
     execution_id = Column(Integer, ForeignKey("recovery_executions.id"), primary_key=True)
     outcome_id = Column(Integer, ForeignKey("outcomes.id"), nullable=False, unique=True)
+
+
+class RecoveryIntent(Base):
+    """Persisted before contacting the provider, so early events have an owner."""
+
+    __tablename__ = "recovery_intents"
+
+    id = Column(String, primary_key=True)
+    payment_id = Column(String, ForeignKey("payments.payment_id"), nullable=False, index=True)
+    action_type = Column(String, nullable=False)
+    provider_type = Column(String, nullable=False)
+    provider_id = Column(String, nullable=True, index=True)
+    execution_id = Column(Integer, ForeignKey("recovery_executions.id"), nullable=True, unique=True)
+    state = Column(String, nullable=False, default="creating")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

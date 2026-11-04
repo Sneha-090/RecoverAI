@@ -291,6 +291,9 @@ execution-attribution tables without removing existing data. Existing audit-log
 event IDs remain recognized. New automatic and human-approved executions store
 their action, audit entry, provider resource ID, amount in paise, and currency
 in `recovery_executions` for precise outcome correlation.
+`recovery_intents` is saved before contacting Razorpay; its reference is included
+in provider notes and bound to the execution after the response is persisted.
+If the response is lost, the intent remains available for reconciliation.
 
 `recovery_reservations` also permits only one active operation per payment,
 including checkout-triggered processing, webhook execution, human approvals,

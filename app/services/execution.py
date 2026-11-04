@@ -8,6 +8,7 @@ recovered or no candidates remain.
 
 import json
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 from app.config import settings
 from app.services.decision import decide
@@ -15,7 +16,7 @@ from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
 from app.models.models import (Action, AuditLog, DecisionType, ReviewStatus, Payment,
-                               Outcome, ExecutionOutcome, RecoveryReservation)
+                               Outcome, ExecutionOutcome, RecoveryReservation, RecoveryIntent)
 from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
 from app.services.execution_records import record_execution, resolve_execution
 
@@ -53,7 +54,7 @@ def _busy_result():
     }
 
 
-def _log_audit(db, payment_id, event_type, reason, payload=None, action=None):
+def _log_audit(db, payment_id, event_type, reason, payload=None, action=None, intent=None):
     entry = AuditLog(
         payment_id=payment_id,
         timestamp=datetime.utcnow(),
@@ -64,8 +65,33 @@ def _log_audit(db, payment_id, event_type, reason, payload=None, action=None):
     db.add(entry)
     if action is not None:
         db.flush()
-        record_execution(db, db.get(Payment, payment_id), action, entry, payload)
+        execution = record_execution(db, db.get(Payment, payment_id), action, entry, payload)
+        if intent is not None:
+            intent.execution_id = execution.id
+            intent.state = "bound"
     db.commit()
+
+
+def _create_recovery_resource(db, payment, action_type, human=False):
+    intent = RecoveryIntent(id=uuid4().hex, payment_id=payment.payment_id,
+                            action_type=action_type,
+                            provider_type="order" if action_type == "retry" else "payment_link")
+    db.add(intent)
+    db.commit()  # Must precede the external request, even when its response is lost.
+    if action_type == "retry":
+        prefix = "human" if human else "retry"
+        result = create_test_order(payment.amount, receipt=f"{prefix}_{payment.payment_id}_{datetime.utcnow().timestamp():.0f}",
+                                   intent_id=intent.id)
+        payload = {"type": "order", "order_id": result["id"]}
+    else:
+        desc = "RecoverAI recovery link" if action_type == "payment_link" else "RecoverAI: try an alternate payment method"
+        if human:
+            desc += " (human-approved)"
+        result = create_payment_link(payment.amount, description=desc, intent_id=intent.id)
+        payload = {"type": "payment_link", "payment_link_id": result["id"], "short_url": result.get("short_url")}
+    intent.provider_id = result["id"]
+    db.commit()
+    return payload, intent
 
 
 def execute_action(db, payment) -> dict:
@@ -138,13 +164,7 @@ def _execute_action(db, payment) -> dict:
                 "executed": False,
             }
 
-    if action_type == "retry":
-        result = create_test_order(payment.amount, receipt=f"retry_{payment.payment_id}_{datetime.utcnow().timestamp():.0f}")
-        payload = {"type": "order", "order_id": result["id"]}
-    else:  # payment_link or alt_method
-        desc = "RecoverAI recovery link" if action_type == "payment_link" else "RecoverAI: try an alternate payment method"
-        result = create_payment_link(payment.amount, description=desc)
-        payload = {"type": "payment_link", "payment_link_id": result["id"], "short_url": result.get("short_url")}
+    payload, intent = _create_recovery_resource(db, payment, action_type)
 
     action_row = Action(
         payment_id=payment.payment_id,
@@ -156,7 +176,7 @@ def _execute_action(db, payment) -> dict:
     db.add(action_row)
     db.commit()
 
-    _log_audit(db, payment.payment_id, "executed", decision["reason"], payload=payload, action=action_row)
+    _log_audit(db, payment.payment_id, "executed", decision["reason"], payload=payload, action=action_row, intent=intent)
 
     return {**decision, "executed": True, "razorpay_payload": payload}
 
@@ -373,12 +393,8 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
         eligible, reason = is_retry_eligible(db, payment)
         if not eligible:
             return {"success": False, "status": "pending_review", "reason": f"Retry not eligible: {reason}"}
-        result = create_test_order(payment.amount, receipt=f"human_{payment_id}_{datetime.utcnow().timestamp():.0f}")
-        payload = {"type": "order", "order_id": result["id"]}
-    else:
-        desc = "RecoverAI recovery link (human-approved)" if chosen_action == "payment_link" else "RecoverAI: alternate method (human-approved)"
-        result = create_payment_link(payment.amount, description=desc)
-        payload = {"type": "payment_link", "payment_link_id": result["id"], "short_url": result.get("short_url")}
+
+    payload, intent = _create_recovery_resource(db, payment, chosen_action, human=True)
 
     new_action = Action(
         payment_id=payment_id,
@@ -392,6 +408,6 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     action_row.review_status = ReviewStatus.actioned
     db.commit()
 
-    _log_audit(db, payment_id, "human_approved_executed", f"Business user chose {chosen_action}", payload=payload, action=new_action)
+    _log_audit(db, payment_id, "human_approved_executed", f"Business user chose {chosen_action}", payload=payload, action=new_action, intent=intent)
 
     return {"success": True, "executed_action": chosen_action, "razorpay_payload": payload}

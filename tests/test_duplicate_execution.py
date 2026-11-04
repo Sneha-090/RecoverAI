@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
-from app.models.models import Action, Outcome, Payment, RecoveryReservation, RecoveryExecution, AuditLog
+from app.models.models import Action, Outcome, Payment, RecoveryReservation, RecoveryExecution, AuditLog, RecoveryIntent
 from app.services.execution import execute_action, human_review_action, observe_outcome
 from app.services.reservations import RecoveryInProgress
 
@@ -38,6 +38,11 @@ def test_overlapping_automatic_and_human_requests_create_one_link(sessions, monk
     started, release = Event(), Event()
 
     def create(*args, **kwargs):
+        with sessions() as db:
+            intent = db.get(RecoveryIntent, kwargs["intent_id"])
+            assert intent.payment_id == "pay_shared"
+            assert intent.state == "creating"
+            assert intent.provider_id is None
         started.set()
         assert release.wait(timeout=10)
         return {"id": "plink_one"}
@@ -83,6 +88,10 @@ def test_overlapping_automatic_and_human_requests_create_one_link(sessions, monk
         assert db.get(Action, execution.action_id).action_type == "payment_link"
         audit = db.get(AuditLog, execution.audit_id)
         assert audit.event_type == ("human_approved_executed" if human else "executed")
+        intent = db.query(RecoveryIntent).one()
+        assert intent.execution_id == execution.id
+        assert intent.provider_id == execution.provider_id
+        assert intent.state == "bound"
 
 
 @pytest.mark.parametrize("fail_after_provider", [False, True])
@@ -97,6 +106,10 @@ def test_uncertain_execution_stays_blocked_after_restart(sessions, monkeypatch, 
         run_auto(sessions)
     with sessions() as db:
         assert db.get(RecoveryReservation, "pay_shared").state == "needs_reconciliation"
+        intent = db.query(RecoveryIntent).one()
+        assert intent.state == "creating"
+        assert intent.execution_id is None
+        assert intent.provider_id == ("plink_maybe_created" if fail_after_provider else None)
     assert run_auto(sessions)["executed"] is False
     assert provider.call_count == 1
 
