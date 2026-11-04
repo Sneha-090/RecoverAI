@@ -286,8 +286,11 @@ An interrupted delivery is marked `needs_reconciliation` and is not automaticall
 replayed, because the external provider may already have accepted an action.
 
 After updating an existing installation, stop the app, run
-`python -m app.db.init_db`, then restart it. This adds the reservation tables
-without removing existing data. Existing audit-log event IDs remain recognized.
+`python -m app.db.init_db`, then restart it. This adds the reservation and
+execution-attribution tables without removing existing data. Existing audit-log
+event IDs remain recognized. New automatic and human-approved executions store
+their action, audit entry, provider resource ID, amount in paise, and currency
+in `recovery_executions` for precise outcome correlation.
 
 `recovery_reservations` also permits only one active operation per payment,
 including checkout-triggered processing, webhook execution, human approvals,

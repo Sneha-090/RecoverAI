@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
-from app.models.models import Action, Outcome, Payment, RecoveryReservation
+from app.models.models import Action, Outcome, Payment, RecoveryReservation, RecoveryExecution, AuditLog
 from app.services.execution import execute_action, human_review_action, observe_outcome
 from app.services.reservations import RecoveryInProgress
 
@@ -73,6 +73,16 @@ def test_overlapping_automatic_and_human_requests_create_one_link(sessions, monk
     # A restart/new session must not start another action while awaiting payment.
     assert run_auto(sessions)["executed"] is False
     assert provider.call_count == 1
+    with sessions() as db:
+        execution = db.query(RecoveryExecution).one()
+        assert execution.payment_id == "pay_shared"
+        assert execution.provider_type == "payment_link"
+        assert execution.provider_id == "plink_one"
+        assert execution.amount_paise == 100000
+        assert execution.currency == "INR"
+        assert db.get(Action, execution.action_id).action_type == "payment_link"
+        audit = db.get(AuditLog, execution.audit_id)
+        assert audit.event_type == ("human_approved_executed" if human else "executed")
 
 
 @pytest.mark.parametrize("fail_after_provider", [False, True])

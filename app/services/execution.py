@@ -16,6 +16,7 @@ from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
 from app.models.models import Action, AuditLog, DecisionType, ReviewStatus, Payment, Outcome
 from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
+from app.services.execution_records import record_execution
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -49,7 +50,7 @@ def _busy_result():
     }
 
 
-def _log_audit(db, payment_id, event_type, reason, payload=None):
+def _log_audit(db, payment_id, event_type, reason, payload=None, action=None):
     entry = AuditLog(
         payment_id=payment_id,
         timestamp=datetime.utcnow(),
@@ -58,6 +59,9 @@ def _log_audit(db, payment_id, event_type, reason, payload=None):
         payload_json=json.dumps(payload) if payload else None,
     )
     db.add(entry)
+    if action is not None:
+        db.flush()
+        record_execution(db, db.get(Payment, payment_id), action, entry, payload)
     db.commit()
 
 
@@ -149,7 +153,7 @@ def _execute_action(db, payment) -> dict:
     db.add(action_row)
     db.commit()
 
-    _log_audit(db, payment.payment_id, "executed", decision["reason"], payload=payload)
+    _log_audit(db, payment.payment_id, "executed", decision["reason"], payload=payload, action=action_row)
 
     return {**decision, "executed": True, "razorpay_payload": payload}
 
@@ -332,6 +336,6 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     action_row.review_status = ReviewStatus.actioned
     db.commit()
 
-    _log_audit(db, payment_id, "human_approved_executed", f"Business user chose {chosen_action}", payload=payload)
+    _log_audit(db, payment_id, "human_approved_executed", f"Business user chose {chosen_action}", payload=payload, action=new_action)
 
     return {"success": True, "executed_action": chosen_action, "razorpay_payload": payload}

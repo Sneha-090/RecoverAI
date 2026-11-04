@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, DateTime,
-    ForeignKey, Text, Enum as SAEnum
+    ForeignKey, Text, Enum as SAEnum, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -152,3 +152,28 @@ class RecoveryReservation(Base):
     owner = Column(String, nullable=False)
     state = Column(String, nullable=False, default="processing")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class RecoveryExecution(Base):
+    """One provider resource belonging to one executed action, including history."""
+
+    __tablename__ = "recovery_executions"
+    __table_args__ = (UniqueConstraint("provider_type", "provider_id"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    payment_id = Column(String, ForeignKey("payments.payment_id"), nullable=False, index=True)
+    action_id = Column(Integer, ForeignKey("actions.id"), nullable=False, unique=True)
+    audit_id = Column(Integer, ForeignKey("audit_log.id"), nullable=False, unique=True)
+    provider_type = Column(String, nullable=False)
+    provider_id = Column(String, nullable=False)
+    amount_paise = Column(Integer, nullable=False)
+    currency = Column(String, nullable=False, default="INR")
+
+
+class ExecutionOutcome(Base):
+    """Unique attribution without altering the existing outcomes table."""
+
+    __tablename__ = "execution_outcomes"
+
+    execution_id = Column(Integer, ForeignKey("recovery_executions.id"), primary_key=True)
+    outcome_id = Column(Integer, ForeignKey("outcomes.id"), nullable=False, unique=True)
