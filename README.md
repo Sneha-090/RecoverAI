@@ -956,11 +956,21 @@ http://127.0.0.1:8000/docs
 
 ### Start ngrok
 
-In another terminal:
+Expose the webhook gateway rather than the operator backend. In another terminal:
 
 ```bash
-ngrok http 8000
+python -m uvicorn app.webhook_gateway:app --host 127.0.0.1 --port 8002
 ```
+
+Then start the tunnel to that gateway:
+
+```bash
+ngrok http 8002
+```
+
+The gateway exposes only `POST /webhooks/razorpay`. Operator APIs, checkout,
+documentation, OpenAPI, and local configuration paths are absent; requests to
+those paths return 404. Razorpay signature validation remains required.
 
 Use the HTTPS ngrok URL for the Razorpay webhook endpoint:
 
@@ -975,7 +985,16 @@ payment.failed
 payment.captured
 ```
 
-ngrok is used here to expose the locally running FastAPI webhook endpoint through a temporary public HTTPS URL so Razorpay can deliver webhook events to the local application.
+ngrok provides the public HTTPS URL for Razorpay test webhook delivery. Keep the
+operator backend private. Webhook payloads transit the tunnel provider; use only
+test-mode data in this local demo and authorize that destination before starting
+a tunnel. Local signed replay tests verify the receiver but do not prove that
+Razorpay delivered an event over the public tunnel.
+
+If numerical-library startup fails on a low-memory Windows machine, set
+`OPENBLAS_NUM_THREADS=1` and `OMP_NUM_THREADS=1` in that terminal before launching
+the server. If port 8000 belongs to another app, use a free operator API port and
+update local `API_BASE_URL` accordingly; the webhook gateway can remain on 8002.
 
 ### Start the Dashboard
 

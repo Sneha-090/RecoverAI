@@ -22,7 +22,12 @@ verified in this review.
   complete historical outcome attribution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  178 passing tests as of this review.
+  189 passing tests including the webhook-only gateway checks.
+- A public webhook-only gateway excludes operator APIs, checkout, documentation,
+  and configuration paths. Local HTTP checks cover valid/invalid signatures,
+  processing a replay of an old failed test payment, and duplicate rejection
+  without creating recovery actions. This does not establish provider-to-tunnel
+  delivery; that still requires a working tunnel and an actual provider event.
 - Grouped synthetic evaluation: 1,600 training contexts, 400 held-out contexts,
   zero overlap. Stored model/data hashes, baseline, probability-quality metrics,
   and calibration diagnostics in `ML/evaluation.json`.
