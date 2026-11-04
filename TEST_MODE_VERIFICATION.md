@@ -37,7 +37,19 @@ performance, concurrent delivery behavior, or handling of every payment method.
 The existing regression suite covers duplicates and competing operations; this
 particular provider checkout was not a provider-redelivery experiment.
 
-Next priorities remain persisted execution identities and exact outcome
-attribution, amount/currency validation, reviewed reconciliation of interrupted
-operations, and scheduled review expiry. The protected local checkout and
-dashboard login also need a separate browser smoke test with operator login.
+## Execution attribution upgrade
+
+The subsequent upgrade adds persisted execution identities, one attributed
+outcome per execution, exact historical matching, and amount/currency checks.
+Regression tests simulate delayed provider captures and signed webhook
+deliveries; those tests are separate from the actual provider checkout above.
+They do not establish that a delayed provider event has been exercised remotely.
+
+The additive schema initialization was run against `D:\RecoverAI`. Both new
+tables were present afterward, and the case above remained `recovered` with
+one action and one success outcome. Existing records were not deleted.
+
+Next priorities remain an unmatched-event inbox, reviewed reconciliation of
+interrupted operations, provider resource cleanup, and scheduled review expiry.
+The protected local checkout and dashboard login also need a separate browser
+smoke test with operator login.

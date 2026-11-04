@@ -297,8 +297,13 @@ including checkout-triggered processing, webhook execution, human approvals,
 and outcome observation. Reservations remain while an order/link awaits payment
 or a case awaits human review. Outcome observation and approval atomically take
 over their corresponding waiting phase. Unpaid/open orders and links remain
-pending; they do not trigger another recovery action. Delayed events for an older
-attempt cannot advance the current attempt. A busy outcome webhook returns 503
+pending; they do not trigger another recovery action. Delayed events resolve the
+exact execution: an older verified success settles the case, while an older
+failure cannot advance the current attempt. Captures must match the stored
+amount/currency, and each execution has one attributed outcome. A later success
+updates its earlier failed result. Pending reviews are expired after recovery;
+previously issued provider links/orders are not automatically cancelled.
+A busy outcome webhook returns 503
 and remains retryable, so it can be handled after the owner finishes.
 
 If a provider request times out, or saving its result fails, the reservation is

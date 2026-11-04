@@ -17,12 +17,13 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
 - Database-backed webhook claims and per-payment reservations prevent competing
   requests from starting overlapping operations. Interrupted operations remain
   blocked for reconciliation rather than automatically repeating a provider call.
-- Open/unpaid attempts remain pending. A mismatched old event cannot advance the
-  current attempt. This is protection against advancing the wrong attempt, not
-  complete historical outcome attribution.
+- Open/unpaid attempts remain pending. Each execution stores its provider ID,
+  action, amount, and currency. Delayed captures are checked against that exact
+  execution, including earlier failed attempts, and can settle the original case.
+  Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  189 passing tests including the webhook-only gateway checks.
+  218 passing tests including historical attribution and webhook gateway checks.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -53,21 +54,28 @@ own configured browser smoke test. This single-operator implementation
 still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
-### 2. Exact attribution and reconciliation
+### 2. Exact attribution (implemented); reconciliation remains
 
-Evidence: `app/services/execution.py` still obtains the latest execution from
-audit JSON; `Outcome` associates results with payment/action type, not a unique
-execution. An old order's delayed capture is ignored when a newer action exists.
-A provider event arriving before the execution audit is stored can be unmatched.
+Implemented: `recovery_executions` binds each new automatic or approved action
+to its provider resource. `execution_outcomes` gives each execution one result.
+Order captures and paid links must match stored INR amounts; links must also
+match the resource ID and full amount paid. A late success upgrades that
+execution's failed result, settles the original case, clears its reservation,
+and expires pending reviews. Newer executions' outcomes remain untouched.
 
-Introduce a persisted execution identity with indexed provider IDs and unique
-outcomes per execution. Match events to that execution, verify amount/currency,
-recognize success from an earlier attempt, and stop outstanding recovery work.
-Provide reviewed reconciliation for ambiguous timeouts and interrupted claims.
+Tests cover older order/link captures, duplicate event IDs and separate event
+IDs for the same capture, repeated action types, old failure/pending events,
+amount/currency mismatches, and late success during review or after closure.
+Legacy audit records and outcomes are imported only when attribution is
+unambiguous; uncertain history stays blocked for reconciliation.
+
+Remaining: an event arriving before its execution/audit is persisted can still
+be unmatched. Add a durable unmatched-event inbox with controlled replay and
+reviewed reconciliation for ambiguous provider timeouts or interrupted claims.
+Successful recovery stops local follow-up work, but does not automatically
+cancel previously issued provider links/orders. Add supported provider cleanup
+and reconciliation before promising protection from multiple payments.
 Do not blindly expire claims or promise exactly-once external charges.
-
-Done when out-of-order, duplicate, and early-arriving events are covered by
-integration tests and a verified late success updates the original case once.
 
 ### 3. Complete review and retry lifecycle
 
