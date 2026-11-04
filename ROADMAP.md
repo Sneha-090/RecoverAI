@@ -1,10 +1,10 @@
 # RecoverAI: verified state and improvement plan
 
-Reviewed 3 November 2026. This is a repository review, not a production readiness
+Reviewed 4 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
-synthetic ML data. A fresh `D:\RecoverAI` installation was started separately;
-its credentials, database initialization, and live checkout have not yet been
-verified in this review.
+synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
+credentials, initialized database tables, and a completed provider-origin
+failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
 
 ## Implemented and tested
 
@@ -26,8 +26,9 @@ verified in this review.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
-  without creating recovery actions. This does not establish provider-to-tunnel
-  delivery; that still requires a working tunnel and an actual provider event.
+  without creating recovery actions. An actual provider-origin failed payment
+  and captured recovery payment also reached the tunnel and were processed on
+  4 November 2026; the original case became recovered with one success outcome.
 - Grouped synthetic evaluation: 1,600 training contexts, 400 held-out contexts,
   zero overlap. Stored model/data hashes, baseline, probability-quality metrics,
   and calibration diagnostics in `ML/evaluation.json`.
@@ -46,8 +47,9 @@ credentials are not embedded in its source. Signed webhooks remain separate.
 
 Unauthorized access and invalid inputs are covered by API tests. Dashboard tests
 exercise hidden content, rejected login, successful login/logout, session expiry,
-and credential rotation. A real browser/Razorpay checkout still needs a manual
-test with configured test-mode credentials. This single-operator implementation
+and credential rotation. A hosted Razorpay Test Mode checkout completed the
+recovery flow; the protected local checkout and dashboard login still need their
+own configured browser smoke test. This single-operator implementation
 still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
