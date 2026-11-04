@@ -29,6 +29,15 @@ def resolve_execution(db, payment, order_id=None, payment_link_id=None):
     Legacy executions are bound only when exactly one executed action exists
     between consecutive audit timestamps. Ambiguous history needs reconciliation.
     """
+    if order_id or payment_link_id:
+        row = db.query(RecoveryExecution).filter_by(
+            payment_id=payment.payment_id,
+            provider_type="order" if order_id else "payment_link",
+            provider_id=order_id or payment_link_id,
+        ).first()
+        if row:
+            audit = db.get(AuditLog, row.audit_id)
+            return row, json.loads(audit.payload_json)
     entries = db.query(AuditLog).filter(
         AuditLog.payment_id == payment.payment_id,
         AuditLog.event_type.in_(["executed", "human_approved_executed"]),

@@ -13,6 +13,7 @@ from app.models.models import (
     DecisionType,
     ReviewStatus,
     Payment,
+    RecoveryExecution,
 )
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
@@ -41,6 +42,9 @@ def _find_recovery_case_by_order_id(db, order_id: str):
     Both automatic and human-approved executions are considered.
     The latest matching execution is returned.
     """
+    execution = db.query(RecoveryExecution).filter_by(provider_type="order", provider_id=order_id).first()
+    if execution:
+        return execution.payment_id
     entries = (
         db.query(AuditLog)
         .filter(
@@ -98,6 +102,12 @@ def _find_recovery_case_by_payment_link_description(
 
     if not link_suffix:
         return None
+
+    execution = db.query(RecoveryExecution).filter_by(
+        provider_type="payment_link", provider_id="plink_" + link_suffix,
+    ).first()
+    if execution:
+        return execution.payment_id
 
     entries = (
         db.query(AuditLog)
@@ -351,12 +361,21 @@ async def razorpay_webhook(
         # First determine whether this failed payment belongs
         # to an existing RecoverAI recovery action.
         original_payment_id = None
+        correlation = {}
 
         if recovery_order_id:
             original_payment_id = _find_recovery_case_by_order_id(
                 db,
                 recovery_order_id,
             )
+            if original_payment_id:
+                correlation = {"expected_order_id": recovery_order_id}
+
+        if not original_payment_id:
+            description = payment_entity.get("description")
+            original_payment_id = _find_recovery_case_by_payment_link_description(db, description)
+            if original_payment_id:
+                correlation = {"expected_payment_link_id": "plink_" + description.strip()[1:].strip()}
 
         # Recovery attempt failed.
         # Do NOT create a new independent RecoverAI case.
@@ -373,7 +392,7 @@ async def razorpay_webhook(
                 result = observe_outcome(
                     db,
                     original_payment,
-                    expected_order_id=recovery_order_id,
+                    **correlation,
                 )
 
                 _record_processed_webhook(

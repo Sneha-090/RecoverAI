@@ -78,6 +78,64 @@ def signed_event(event_id=None):
     return body, headers
 
 
+@pytest.mark.parametrize("kind,event", [("order", "payment.captured"),
+                                        ("payment_link", "payment.captured"),
+                                        ("payment_link", "payment.failed")])
+def test_signed_historical_resource_event_uses_original_case(client, db_session, monkeypatch, kind, event):
+    from datetime import datetime, timedelta
+    from unittest.mock import Mock
+    from app.config import settings
+    from app.models.models import Action, Outcome, ExecutionOutcome, RecoveryReservation
+    from app.services.execution_records import record_execution
+    payment = Payment(payment_id="pay_history", amount=499, status="failed")
+    db_session.add(payment)
+    executions = []
+    for offset, resource_kind, resource_id in [(2, kind, "old"), (1, "payment_link", "new")]:
+        when = datetime.utcnow() - timedelta(hours=offset)
+        action = Action(payment_id=payment.payment_id,
+                        action_type="retry" if resource_kind == "order" else "payment_link",
+                        decision_type="auto", chosen_at=when)
+        provider_id = ("order_" if resource_kind == "order" else "plink_") + resource_id
+        payload = {"type": resource_kind,
+                   "order_id" if resource_kind == "order" else "payment_link_id": provider_id}
+        audit = AuditLog(payment_id=payment.payment_id, event_type="executed",
+                         timestamp=when + timedelta(seconds=1), payload_json=json.dumps(payload))
+        db_session.add_all([action, audit])
+        db_session.flush()
+        executions.append(record_execution(db_session, payment, action, audit, payload))
+    old_id, current_id = [row.id for row in executions]
+    db_session.add(RecoveryReservation(payment_id=payment.payment_id, owner="waiting", state="awaiting_outcome"))
+    db_session.commit()
+    monkeypatch.setattr("app.services.execution.client.order.payments", lambda _: {
+        "items": [{"status": "captured", "amount": 49900, "currency": "INR"}]})
+    monkeypatch.setattr("app.services.execution.client.payment_link.fetch", lambda _: {
+        "id": "plink_old", "status": "paid" if event == "payment.captured" else "created",
+        "amount": 49900, "amount_paid": 49900, "currency": "INR"})
+    ingest = Mock(side_effect=AssertionError("A recovery payment must not become a separate case"))
+    monkeypatch.setattr("app.api.webhooks.fetch_and_store_payment", ingest)
+    advance = Mock(side_effect=AssertionError("A historical event must not create another action"))
+    monkeypatch.setattr("app.services.execution._execute_action", advance)
+    entity = {"id": "pay_provider", "order_id": "order_old" if kind == "order" else "order_link",
+              "description": "#old" if kind == "payment_link" else None}
+    body = json.dumps({"event": event, "payload": {"payment": {"entity": entity}}}).encode()
+    headers = {"X-Razorpay-Event-Id": "evt_historical", "X-Razorpay-Signature": hmac.new(
+        settings.razorpay_webhook_secret.encode(), body, hashlib.sha256).hexdigest()}
+    response = client.post("/webhooks/razorpay", content=body, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["outcome"]["status"] == ("recovered" if event == "payment.captured" else "awaiting_outcome")
+    assert client.post("/webhooks/razorpay", content=body, headers=headers).json()["status"] == "already_processed"
+    # Different provider event ID for the same capture must still not duplicate the outcome.
+    headers["X-Razorpay-Event-Id"] = "evt_historical_redelivery"
+    assert client.post("/webhooks/razorpay", content=body, headers=headers).status_code == 200
+    assert db_session.query(Payment).count() == 1
+    assert db_session.query(Outcome).count() == (1 if event == "payment.captured" else 0)
+    assert db_session.get(ExecutionOutcome, current_id) is None
+    if event == "payment.captured":
+        assert db_session.get(ExecutionOutcome, old_id) is not None
+    ingest.assert_not_called()
+    advance.assert_not_called()
+
+
 def test_handled_webhook_requires_event_id(client, monkeypatch):
     from unittest.mock import Mock
     fetch = Mock(side_effect=AssertionError("Must reject before ingestion"))

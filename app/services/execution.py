@@ -14,9 +14,10 @@ from app.services.decision import decide
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
-from app.models.models import Action, AuditLog, DecisionType, ReviewStatus, Payment, Outcome
+from app.models.models import (Action, AuditLog, DecisionType, ReviewStatus, Payment,
+                               Outcome, ExecutionOutcome, RecoveryReservation)
 from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
-from app.services.execution_records import record_execution
+from app.services.execution_records import record_execution, resolve_execution
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -34,6 +35,8 @@ def _run_reserved(db, payment_id, operation, expected_state=None):
             state = "awaiting_outcome"
         elif result.get("status") == "pending_review":
             state = "pending_review"
+        elif result.get("status") == "needs_reconciliation":
+            state = "needs_reconciliation"
         finish_recovery(db, payment_id, owner, state)
         return result
     except Exception:
@@ -188,69 +191,122 @@ def _check_real_outcome(payload: dict) -> str:
     if payload["type"] == "order":
         payments = client.order.payments(payload["order_id"])
         items = payments.get("items", [])
-        if any(p.get("status") == "captured" for p in items):
+        captured = [p for p in items if p.get("status") == "captured"]
+        if captured:
+            if not any(_verified_amount(p, payload) for p in captured):
+                raise ValueError("Captured recovery amount or currency does not match execution")
             return "success"
         return "failed" if items and all(p.get("status") == "failed" for p in items) else "pending"
 
     if payload["type"] == "payment_link":
         link = client.payment_link.fetch(payload["payment_link_id"])
         if link.get("status") == "paid":
+            if (link.get("id") != payload["payment_link_id"]
+                    or not _verified_amount(link, payload)
+                    or link.get("amount_paid") != payload["expected_amount_paise"]):
+                raise ValueError("Paid recovery link does not match execution amount or currency")
             return "success"
         return "failed" if link.get("status") in {"cancelled", "expired"} else "pending"
 
     raise ValueError("Unknown recovery payload type")
 
 
+def _verified_amount(resource, payload):
+    return (resource.get("amount") == payload["expected_amount_paise"]
+            and resource.get("currency") == payload["expected_currency"])
+
+
 def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None) -> dict:
+    claim = db.get(RecoveryReservation, payment.payment_id)
+    waiting_state = claim.state if claim and claim.state in {"pending_review", "awaiting_outcome"} else "awaiting_outcome"
+    if claim is None and db.query(Action).filter_by(
+        payment_id=payment.payment_id, review_status=ReviewStatus.pending,
+    ).first():
+        waiting_state = "pending_review"
     return _run_reserved(
         db, payment.payment_id,
-        lambda: _observe_outcome(db, payment, expected_order_id, expected_payment_link_id),
-        "awaiting_outcome",
+        lambda: _observe_outcome(db, payment, expected_order_id, expected_payment_link_id, waiting_state),
+        waiting_state,
     )
 
 
-def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None) -> dict:
+def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome") -> dict:
     db.refresh(payment)
-    payload = _get_last_execution_payload(db, payment.payment_id)
-    if not payload:
-        return {"status": "no_prior_execution", "reason": "no executed action found to observe"}
-
     if payment.status == "recovered":
         return {"status": "recovered"}
-    if (
-        (expected_order_id and payload.get("order_id") != expected_order_id)
-        or (expected_payment_link_id and payload.get("payment_link_id") != expected_payment_link_id)
-    ):
-        return {"status": "awaiting_outcome", "reason": "Event belongs to a different recovery attempt"}
-
-    last_action = (
-        db.query(Action)
-        .filter(Action.payment_id == payment.payment_id, Action.decision_type == "auto")
-        .order_by(Action.chosen_at.desc())
-        .first()
+    latest = _get_last_execution_payload(db, payment.payment_id)
+    if latest is None:
+        return {"status": "no_prior_execution", "reason": "No executed action found to observe"}
+    execution, payload = resolve_execution(
+        db, payment, expected_order_id, expected_payment_link_id,
     )
+    if not execution:
+        if payload:
+            return {"status": "needs_reconciliation", "reason": "Execution history cannot be attributed unambiguously"}
+        return {"status": waiting_state, "reason": "No matching recovery execution found"}
+    action = db.get(Action, execution.action_id)
+    historical = latest != payload
+    payload = {**payload, "expected_amount_paise": execution.amount_paise,
+               "expected_currency": execution.currency}
 
     result = _check_real_outcome(payload)
     if result == "pending":
-        return {"status": "awaiting_outcome", "reason": "Provider has not reported a terminal outcome"}
+        return {"status": waiting_state, "reason": "Provider has not reported a terminal outcome"}
 
-    from app.models.models import Outcome
-    outcome_row = Outcome(
-        payment_id=payment.payment_id,
-        action_type=last_action.action_type,
-        observed_result=result,
-        observed_at=datetime.utcnow(),
-    )
-    db.add(outcome_row)
+    attribution = db.get(ExecutionOutcome, execution.id)
+    already_observed = attribution is not None
+    outcome_row = db.get(Outcome, attribution.outcome_id) if attribution else None
+    if outcome_row is None:
+        # Adopt an old result only if its action and time interval identify it.
+        next_action = db.query(Action).filter(
+            Action.payment_id == payment.payment_id, Action.decision_type == "auto",
+            Action.chosen_at > action.chosen_at,
+        ).order_by(Action.chosen_at, Action.id).first()
+        candidates = db.query(Outcome).outerjoin(
+            ExecutionOutcome, ExecutionOutcome.outcome_id == Outcome.id,
+        ).filter(Outcome.payment_id == payment.payment_id,
+                 Outcome.action_type == action.action_type,
+                 Outcome.observed_at >= action.chosen_at,
+                 ExecutionOutcome.execution_id.is_(None))
+        if next_action:
+            candidates = candidates.filter(Outcome.observed_at <= next_action.chosen_at)
+        prior = candidates.all()
+        same_kind_count = db.query(Action).filter_by(
+            payment_id=payment.payment_id, action_type=action.action_type, decision_type=DecisionType.auto,
+        ).count() if prior else 0
+        if len(prior) > 1 or (prior and same_kind_count != 1):
+            return {"status": "needs_reconciliation", "reason": "Ambiguous legacy outcomes"}
+        outcome_row = prior[0] if prior else Outcome(
+            payment_id=payment.payment_id, action_type=action.action_type,
+            observed_result=result, observed_at=datetime.utcnow(),
+        )
+        already_observed = bool(prior)
+        db.add(outcome_row)
+        db.flush()
+        db.add(ExecutionOutcome(execution_id=execution.id, outcome_id=outcome_row.id))
+    if outcome_row.observed_result == "success":
+        result = "success"
+    if result == "success":
+        outcome_row.observed_result = "success"
+        outcome_row.observed_at = datetime.utcnow()
 
     if result == "success":
         payment.status = "recovered"
+        # A late capture settles the case even if a newer review was waiting.
+        db.query(Action).filter_by(
+            payment_id=payment.payment_id, review_status=ReviewStatus.pending,
+        ).update({"review_status": ReviewStatus.expired, "reason": "Case recovered by an earlier execution"})
         db.commit()
-        _log_audit(db, payment.payment_id, "recovered", f"{last_action.action_type} succeeded")
-        return {"status": "recovered", "action_type": last_action.action_type}
+        _log_audit(db, payment.payment_id, "recovered", f"{action.action_type} succeeded",
+                   payload={"execution_id": execution.id, "provider_id": execution.provider_id})
+        return {"status": "recovered", "action_type": action.action_type, "execution_id": execution.id}
 
     db.commit()
-    _log_audit(db, payment.payment_id, "attempt_failed", f"{last_action.action_type} did not recover the payment")
+    if historical or already_observed or waiting_state == "pending_review":
+        return {"status": "historical_outcome_observed" if payment.status == "closed_unrecovered" else waiting_state,
+                "reason": "Historical or already observed failure; no new action started"}
+    _log_audit(db, payment.payment_id, "attempt_failed", f"{action.action_type} did not recover the payment",
+               payload={"execution_id": execution.id})
 
     # Keep ownership while advancing to the next action.
     next_decision = _execute_action(db, payment)
