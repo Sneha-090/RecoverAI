@@ -49,7 +49,21 @@ The additive schema initialization was run against `D:\RecoverAI`. Both new
 tables were present afterward, and the case above remained `recovered` with
 one action and one success outcome. Existing records were not deleted.
 
-Next priorities remain an unmatched-event inbox, reviewed reconciliation of
-interrupted operations, provider resource cleanup, and scheduled review expiry.
+The next upgrade adds the minimal verified-event inbox, pre-request intent
+references, and a bounded replay worker. The 251-test local suite covers early
+capture/failure events, competing workers and retry exhaustion. On 5 November,
+`recovery_intents` and `webhook_inbox` were added to the D drive database; the
+existing recovered case still had one action and one success outcome. The
+worker list/batch commands passed, the updated gateway accepted a signed
+unsupported connection-check event with HTTP 200, and checkout/docs/config
+paths remained HTTP 404. Gateway and worker were started locally. These smoke
+checks do not establish a fresh provider-origin early-delivery experiment.
+
+C drive ran out of space during this upgrade. Active implementation, test
+artifacts and commits were continued in `D:\RecoverAI`; the old C drive working
+copy was not synchronized afterward. No personal files were removed.
+
+Next priorities remain reviewed reconciliation of interrupted operations,
+provider resource cleanup, and scheduled review expiry.
 The protected local checkout and dashboard login also need a separate browser
 smoke test with operator login.

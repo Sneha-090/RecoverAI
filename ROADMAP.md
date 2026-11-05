@@ -1,6 +1,6 @@
 # RecoverAI: verified state and improvement plan
 
-Reviewed 4 November 2026. This is a repository review, not a production readiness
+Reviewed 5 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
 synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
 credentials, initialized database tables, and a completed provider-origin
@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  218 passing tests including historical attribution and webhook gateway checks.
+  251 passing tests including early-event replay, historical attribution, and gateway checks.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -69,9 +69,25 @@ amount/currency mismatches, and late success during review or after closure.
 Legacy audit records and outcomes are imported only when attribution is
 unambiguous; uncertain history stays blocked for reconciliation.
 
-Remaining: an event arriving before its execution/audit is persisted can still
-be unmatched. Add a durable unmatched-event inbox with controlled replay and
-reviewed reconciliation for ambiguous provider timeouts or interrupted claims.
+Implemented next: verified events are stored in a minimal durable inbox before
+processing. Recovery intents are saved before provider requests and referenced
+in provider notes. Early captures, and early failures identified by that intent,
+wait for execution persistence. A separate local worker reuses the same claims
+and provider verification to replay them; it never starts a new independent case
+for an identified early recovery failure. Tests cover pre-response events,
+separate database sessions, competing workers, temporary read failures, and a
+creation/lookup timing race.
+
+The worker backs off, processes bounded batches, and retains unresolved events
+for reconciliation after 20 attempts. Processing/reconciliation claims are not
+forced. The D drive database was upgraded and the local gateway/worker smoke
+tests passed. This upgrade was tested with simulated early events, not a new
+provider-origin timing experiment.
+
+Remaining: build reviewed reconciliation for ambiguous provider timeouts,
+interrupted claims, exhausted retries and unrelated captured payments. Provider
+resources created before intent metadata was introduced may need manual
+correlation when their events arrive before legacy audit persistence.
 Successful recovery stops local follow-up work, but does not automatically
 cancel previously issued provider links/orders. Add supported provider cleanup
 and reconciliation before promising protection from multiple payments.
