@@ -25,6 +25,7 @@ from app.models.models import (
 )
 from app.services.execution import human_review_action
 from app.ui.operator_login import require_dashboard_operator
+from app.ui.reconciliation import render_reconciliation
 from app.services.reporting import (
     compute_impact_metrics,
     compute_naive_blanket_retry_baseline,
@@ -42,7 +43,7 @@ st.set_page_config(
 
 st.title("RecoverAI — Recovery Dashboard")
 
-require_dashboard_operator()
+operator_username = require_dashboard_operator()
 
 db = SessionLocal()
 
@@ -126,6 +127,7 @@ def get_recovery_order_info(payment_id: str):
     tab_live,
     tab_batch,
     tab_review,
+    tab_reconciliation,
     tab_guardrails,
     tab_impact,
     tab_explain,
@@ -134,6 +136,7 @@ def get_recovery_order_info(payment_id: str):
         "Live Razorpay Cases",
         "Batch Evaluation",
         "Human Review",
+        "Recovery Review",
         "Guardrails",
         "Impact",
         "Decision Explanation",
@@ -1051,4 +1054,8 @@ with tab_explain:
 # CLOSE DB
 # =====================================================
 
-db.close()
+try:
+    with tab_reconciliation:
+        render_reconciliation(db, operator_username)
+finally:
+    db.close()
