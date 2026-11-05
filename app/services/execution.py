@@ -250,7 +250,7 @@ def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_i
     )
 
 
-def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome") -> dict:
+def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome", settle_only=False) -> dict:
     db.refresh(payment)
     if payment.status == "recovered":
         return {"status": "recovered"}
@@ -270,6 +270,8 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
                "expected_currency": execution.currency}
 
     result = _check_real_outcome(payload)
+    if settle_only and result != "success":
+        return {"status": "needs_reconciliation", "reason": "Provider did not verify full recovery"}
     if result == "pending":
         return {"status": waiting_state, "reason": "Provider has not reported a terminal outcome"}
 
