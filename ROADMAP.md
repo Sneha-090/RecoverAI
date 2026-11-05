@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  251 passing tests including early-event replay, historical attribution, and gateway checks.
+  286 passing tests including reviewed reconciliation, dashboard login, early-event replay, and attribution.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -54,7 +54,7 @@ own configured browser smoke test. This single-operator implementation
 still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
-### 2. Exact attribution (implemented); reconciliation remains
+### 2. Exact attribution and reviewed success reconciliation (implemented)
 
 Implemented: `recovery_executions` binds each new automatic or approved action
 to its provider resource. `execution_outcomes` gives each execution one result.
@@ -84,10 +84,21 @@ forced. The D drive database was upgraded and the local gateway/worker smoke
 tests passed. This upgrade was tested with simulated early events, not a new
 provider-origin timing experiment.
 
-Remaining: build reviewed reconciliation for ambiguous provider timeouts,
-interrupted claims, exhausted retries and unrelated captured payments. Provider
-resources created before intent metadata was introduced may need manual
-correlation when their events arrive before legacy audit persistence.
+Implemented: the authenticated Recovery Review tab lists blocked/in-progress
+cases and held webhook events. Provider checks are explicit and read-only.
+Verified existing executions, or an intent with matching provider notes, ID,
+amount and currency, can settle a blocked case after a fresh provider check.
+Settlement claims only `needs_reconciliation`, records the operator in audit,
+and cannot create a new order/link or advance a failed/pending attempt. Lost
+responses can be matched to an operator-supplied existing provider resource;
+ambiguous action history stays blocked. Competing reconcilers settle once.
+
+Remaining: processing claims are not reset here, since their owner may still be
+running. Unknown legacy resources without intent metadata, ambiguous history,
+exhausted webhook retries and unrelated captures still need investigation. Held
+webhooks are shown read-only and are not forcibly replayed by settling a case.
+Add an operational ownership/lease protocol before offering crash recovery for
+processing claims; do not infer that an old timestamp means a process is dead.
 Successful recovery stops local follow-up work, but does not automatically
 cancel previously issued provider links/orders. Add supported provider cleanup
 and reconciliation before promising protection from multiple payments.

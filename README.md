@@ -1358,3 +1358,22 @@ Processing crashes and ambiguous provider operations remain blocked. The worker
 must share the gateway's database and configuration; it is not a public API and
 runs only while its process is active. No provider creation request is retried
 merely because its response was lost.
+
+
+### Review a stuck recovery safely
+
+Sign in to the dashboard and open **Recovery Review**. Select the case and its
+recovery attempt, then click **Check Razorpay status**. Checks read existing
+provider resources; opening the tab does not contact Razorpay automatically.
+
+If a creation response was lost, supply the existing Razorpay order/link ID.
+The provider notes must match the saved recovery intent, and amount/currency
+must match the case. A verified full success enables **Mark case recovered**.
+Settlement checks provider evidence again under an exclusive claim, records the
+operator in audit, and creates no new external payment request.
+
+Failed/pending results and mismatched or unavailable evidence do not settle the
+case or trigger another action. An active `processing` claim cannot be reset
+from this screen. Cases with no verifiable reference or ambiguous history remain
+blocked. Held webhook events are visible for investigation; this screen does
+not force replay of uncertain events or automatically cancel other resources.

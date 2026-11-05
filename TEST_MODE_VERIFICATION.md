@@ -67,3 +67,17 @@ Next priorities remain reviewed reconciliation of interrupted operations,
 provider resource cleanup, and scheduled review expiry.
 The protected local checkout and dashboard login also need a separate browser
 smoke test with operator login.
+
+
+## Reviewed reconciliation upgrade — 5 November 2026
+
+The local suite now has 286 passing tests. Reconciliation tests use simulated
+provider responses, including successful/failed/pending outcomes, lost creation
+responses, mismatched evidence, provider errors, concurrent operators and
+rollback of an unsettled binding. Streamlit AppTest covers login protection,
+explicit status checking, separate settlement, active-operation guards,
+sanitized errors, stale-preview rejection and read-only held-event display.
+
+The authenticated dashboard was started locally from `D:\RecoverAI` on
+`http://127.0.0.1:8501`. Existing local data was not replaced with demo cases.
+This verification does not claim a new provider-origin reconciliation exercise.
