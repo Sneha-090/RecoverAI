@@ -1377,3 +1377,19 @@ case or trigger another action. An active `processing` claim cannot be reset
 from this screen. Cases with no verifiable reference or ambiguous history remain
 blocked. Held webhook events are visible for investigation; this screen does
 not force replay of uncertain events or automatically cancel other resources.
+
+### Forgotten operator password
+
+The password cannot be recovered from its stored hash. Run this locally from
+the project folder and enter a new password twice (12 to 1024 characters):
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.reset_operator_password
+```
+
+Typing stays hidden. The command updates only the password hash in the local
+`.env`, preserves the username and provider settings, and prints no password or
+hash. Its temporary file stays on the same drive and is ignored by Git. Restart
+the dashboard and any operator API process afterward so the new hash is loaded
+and existing sessions are invalidated. Never send passwords or `.env` contents
+in chat or commit them to Git.

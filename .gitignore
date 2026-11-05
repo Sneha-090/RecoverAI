@@ -22,3 +22,5 @@ recoverai.db
 .vscode/
 .idea/
 *.log
+# Temporary local credential update files
+.operator-reset-*
