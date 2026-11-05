@@ -19,6 +19,10 @@ from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
 from app.services.ingestion import fetch_and_store_payment
 from app.services.reservations import reserve_webhook, finish_webhook, RecoveryInProgress
+from app.services.webhook_inbox import (
+    remember_verified_event, mark_inbox_claimed, unpersisted_recovery_intent,
+    EventConflict, EventNotReady, finish_inbox,
+)
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -216,8 +220,15 @@ async def razorpay_webhook(
             detail="Invalid Razorpay webhook signature",
         )
 
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except (ValueError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid webhook JSON") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Webhook must be a JSON object")
     event = payload.get("event")
+    if not isinstance(event, str):
+        raise HTTPException(status_code=400, detail="Invalid webhook event type")
     razorpay_event_id = x_razorpay_event_id
 
     # Ignore events that this application does not handle.
@@ -227,24 +238,43 @@ async def razorpay_webhook(
             "event": event,
         }
 
-    payment_entity = (
-        payload.get("payload", {})
-        .get("payment", {})
-        .get("entity", {})
-    )
+    try:
+        payment_entity = payload["payload"]["payment"]["entity"]
+    except (KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail="Missing payment entity") from exc
+    if not isinstance(payment_entity, dict):
+        raise HTTPException(status_code=400, detail="Invalid payment entity")
 
     payment_id = payment_entity.get("id")
 
-    if not payment_id:
+    if not isinstance(payment_id, str) or not payment_id or len(payment_id) > 128:
         raise HTTPException(
             status_code=400,
             detail=f"{event} event missing payment id",
         )
 
-    if not razorpay_event_id or not razorpay_event_id.strip():
+    order_id = payment_entity.get("order_id")
+    if order_id is not None and (not isinstance(order_id, str) or len(order_id) > 128):
+        raise HTTPException(status_code=400, detail="Invalid order id")
+    if not razorpay_event_id or not razorpay_event_id.strip() or len(razorpay_event_id) > 128:
         raise HTTPException(status_code=400, detail="Missing Razorpay webhook event id")
 
     db = SessionLocal()
+    try:
+        try:
+            payload = remember_verified_event(db, razorpay_event_id, payload)
+        except EventConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return process_verified_webhook(db, payload, razorpay_event_id)
+    finally:
+        db.close()
+
+
+def process_verified_webhook(db, payload, razorpay_event_id):
+    """Internal entry point for already verified, durably stored events only."""
+    event = payload["event"]
+    payment_entity = payload["payload"]["payment"]["entity"]
+    payment_id = payment_entity["id"]
     reserved = False
     receipt_state = "processed"
 
@@ -256,6 +286,7 @@ async def razorpay_webhook(
             db,
             razorpay_event_id,
         ):
+            finish_webhook(db, razorpay_event_id, "processed")
             return {
                 "status": "already_processed",
                 "razorpay_event_id": razorpay_event_id,
@@ -264,14 +295,18 @@ async def razorpay_webhook(
 
         existing_state = reserve_webhook(db, razorpay_event_id)
         if existing_state == "processed":
+            finish_webhook(db, razorpay_event_id, "processed")
             return {"status": "already_processed", "razorpay_event_id": razorpay_event_id, "event": event}
         if existing_state is not None:
+            finish_inbox(db, razorpay_event_id, existing_state)
+            db.commit()
             raise HTTPException(
                 status_code=503,
                 detail=f"Webhook is {existing_state}; no duplicate execution attempted",
                 headers={"Retry-After": "30"},
             )
         reserved = True
+        mark_inbox_claimed(db, razorpay_event_id)
 
         # -----------------------------------------------------
         # PAYMENT CAPTURED
@@ -305,12 +340,10 @@ async def razorpay_webhook(
                     correlation = {"expected_payment_link_id": "plink_" + payment_description.strip()[1:].strip()}
 
             if not original_payment_id:
+                receipt_state = "waiting_for_execution"
                 return {
-                    "status": "ignored",
-                    "reason": (
-                        "Captured payment does not belong to a "
-                        "RecoverAI recovery action."
-                    ),
+                    "status": "waiting_for_execution",
+                    "reason": "Verified capture saved until its recovery execution can be matched.",
                     "captured_payment_id": captured_payment_id,
                     "order_id": recovery_order_id,
                     "description": payment_description,
@@ -325,8 +358,9 @@ async def razorpay_webhook(
             )
 
             if not original_payment:
+                receipt_state = "waiting_for_execution"
                 return {
-                    "status": "ignored",
+                    "status": "waiting_for_execution",
                     "reason": "Original RecoverAI payment not found.",
                 }
 
@@ -411,6 +445,22 @@ async def razorpay_webhook(
                     "outcome": result,
                 }
 
+        # A resource can deliver its event before the creation response/audit.
+        # Its provider-side intent reference identifies it without starting a
+        # second, independent recovery case.
+        if unpersisted_recovery_intent(db, payment_entity):
+            receipt_state = "waiting_for_execution"
+            return {"status": "waiting_for_execution", "reason": "Recovery execution is not yet persisted"}
+
+        # The creator may have committed its execution after our first lookup.
+        # Re-check before treating an unmatched failure as a brand-new case.
+        appeared = (
+            _find_recovery_case_by_order_id(db, recovery_order_id) if recovery_order_id else None
+        ) or _find_recovery_case_by_payment_link_description(db, payment_entity.get("description"))
+        if appeared:
+            receipt_state = "waiting_for_execution"
+            return {"status": "waiting_for_execution", "reason": "Execution correlation changed; replay will observe it"}
+
         # Normal original payment failure.
         payment = fetch_and_store_payment(
             db,
@@ -481,6 +531,10 @@ async def razorpay_webhook(
             "executed": result["executed"],
         }
 
+    except EventNotReady:
+        db.rollback()
+        receipt_state = "waiting_for_execution"
+        return {"status": "waiting_for_execution", "reason": "Provider correlation is not yet available"}
     except RecoveryInProgress as exc:
         db.rollback()
         receipt_state = "retryable"
@@ -491,8 +545,5 @@ async def razorpay_webhook(
             receipt_state = "needs_reconciliation"
         raise
     finally:
-        try:
-            if reserved:
-                finish_webhook(db, razorpay_event_id, receipt_state)
-        finally:
-            db.close()
+        if reserved:
+            finish_webhook(db, razorpay_event_id, receipt_state)

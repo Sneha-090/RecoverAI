@@ -1324,3 +1324,37 @@ Potential future extensions include:
 GitHub:
 
 https://github.com/Sneha-090/RecoverAI
+
+### Durable webhook inbox and replay worker
+
+After upgrading, stop the app and worker, run `python -m app.db.init_db`, and
+restart them. `webhook_inbox` stores only verified event type, event/payment IDs,
+order ID and a recognized Payment Link reference. Contacts, arbitrary purchase
+descriptions, cards and signatures are excluded from this inbox.
+
+An early unmatched capture is acknowledged only after durable storage. A failed
+recovery event can be identified from the intent reference in provider notes,
+so it waits instead of creating another recovery case. Ordinary original
+failures continue through the normal recovery pipeline.
+
+Keep a separate local worker running to process waiting events after their
+execution is persisted:
+
+```powershell
+python -m scripts.replay_webhooks --watch --interval 15
+```
+
+For one batch use `python -m scripts.replay_webhooks`. Inspect IDs/states without
+processing using `python -m scripts.replay_webhooks --list`. A controlled retry
+of one waiting event is available with `--event-id EVENT_ID`; this does not
+bypass a processing, completed or reconciliation claim.
+
+The worker uses the same database claims and provider outcome verification as
+webhook intake. Retries back off from 30 seconds to five minutes. After 20
+processing attempts, unmatched/retryable events remain stored as
+`needs_reconciliation`; they are not silently discarded or forcibly replayed.
+Unrelated captured payments can also remain unmatched and require review.
+Processing crashes and ambiguous provider operations remain blocked. The worker
+must share the gateway's database and configuration; it is not a public API and
+runs only while its process is active. No provider creation request is retried
+merely because its response was lost.

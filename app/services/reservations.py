@@ -6,6 +6,7 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 
 from app.models.models import RecoveryReservation, WebhookReceipt
+from app.services.webhook_inbox import finish_inbox
 
 
 class RecoveryInProgress(Exception):
@@ -14,7 +15,10 @@ class RecoveryInProgress(Exception):
 
 def reserve_webhook(db, event_id):
     """Return None only for the request that committed the new claim."""
-    changed = db.query(WebhookReceipt).filter_by(event_id=event_id, state="retryable").update(
+    changed = db.query(WebhookReceipt).filter(
+        WebhookReceipt.event_id == event_id,
+        WebhookReceipt.state.in_(["retryable", "waiting_for_execution"]),
+    ).update(
         {"state": "processing"},
     )
     db.commit()
@@ -33,6 +37,7 @@ def reserve_webhook(db, event_id):
 
 
 def finish_webhook(db, event_id, state):
+    state = finish_inbox(db, event_id, state)
     db.query(WebhookReceipt).filter_by(event_id=event_id).update({"state": state})
     db.commit()
 

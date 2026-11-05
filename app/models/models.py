@@ -192,3 +192,16 @@ class RecoveryIntent(Base):
     execution_id = Column(Integer, ForeignKey("recovery_executions.id"), nullable=True, unique=True)
     state = Column(String, nullable=False, default="creating")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class WebhookInbox(Base):
+    """Minimal verified event data retained for bounded, claim-protected replay."""
+
+    __tablename__ = "webhook_inbox"
+
+    event_id = Column(String, primary_key=True)
+    payload_json = Column(Text, nullable=False)
+    state = Column(String, nullable=False, default="pending", index=True)
+    attempts = Column(Integer, nullable=False, default=0)
+    available_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
