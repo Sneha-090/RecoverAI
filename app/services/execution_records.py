@@ -1,13 +1,11 @@
 """Indexed provider correlation; legacy audit records are imported conservatively."""
 
 import json
-from decimal import Decimal
 
 from app.models.models import Action, AuditLog, RecoveryExecution
 
 
-def amount_paise(amount):
-    return int(Decimal(str(amount)) * 100)
+from app.services.money import amount_paise
 
 
 def record_execution(db, payment, action, audit, payload):

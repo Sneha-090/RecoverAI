@@ -1418,3 +1418,8 @@ can choose an untried alternative. Retry budgets and cooling-off time count
 executed retry actions only, not pending, expired or actioned review
 recommendations. `MAX_RETRY_ATTEMPTS` remains an upper bound; it does not enable
 multiple executions of the same action type under the current policy.
+
+Provider requests and stored execution expectations now share exact Decimal
+conversion from rupees to paise. For example, Rs.19.90 is sent as 1,990 paise,
+not the 1,989 produced by truncating a binary float. Non-positive, non-finite
+amounts and fractional paise are rejected before the provider request.

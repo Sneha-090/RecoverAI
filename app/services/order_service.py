@@ -1,4 +1,5 @@
 from app.services.razorpay_client import client
+from app.services.money import amount_paise
 
 
 def create_test_order(amount_rupees: float, receipt: str, intent_id: str | None = None) -> dict:
@@ -7,7 +8,7 @@ def create_test_order(amount_rupees: float, receipt: str, intent_id: str | None 
     Returns the order dict, including 'id' (order_id) needed for checkout.
     """
     request = {
-        "amount": int(amount_rupees * 100),
+        "amount": amount_paise(amount_rupees),
         "currency": "INR",
         "receipt": receipt,
         "payment_capture": 1,
@@ -24,7 +25,7 @@ def create_payment_link(amount_rupees: float, description: str, intent_id: str |
     'payment_link' and 'alt_method' recovery actions.
     """
     request = {
-        "amount": int(amount_rupees * 100),
+        "amount": amount_paise(amount_rupees),
         "currency": "INR",
         "description": description,
         "reminder_enable": True,
