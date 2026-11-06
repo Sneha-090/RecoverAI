@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from app.config import settings
-from app.services.decision import decide
+from app.services.decision import decide, get_tried_actions
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.services.order_service import create_test_order, create_payment_link
 from app.services.razorpay_client import client
@@ -390,6 +390,11 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
 
     eligible, reason = is_recovery_eligible(payment)
     if not eligible:
+        _log_audit(db, payment_id, "human_review_blocked", reason)
+        return {"success": False, "status": "pending_review", "reason": reason}
+
+    if chosen_action in get_tried_actions(db, payment_id):
+        reason = "This action was already executed for the case; choose an untried action."
         _log_audit(db, payment_id, "human_review_blocked", reason)
         return {"success": False, "status": "pending_review", "reason": reason}
 

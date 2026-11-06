@@ -1411,3 +1411,10 @@ Already recovered/captured cases are preserved; verified late captures can
 still settle an expired case. Multiple workers and concurrent approvals use
 the same case claims. The worker requires the same database/configuration as
 the app, runs only while its process is active, and stays quiet when idle.
+
+Human approvals now follow the same one-execution-per-action-type policy as
+automatic decisions. An already executed action stays excluded; the operator
+can choose an untried alternative. Retry budgets and cooling-off time count
+executed retry actions only, not pending, expired or actioned review
+recommendations. `MAX_RETRY_ATTEMPTS` remains an upper bound; it does not enable
+multiple executions of the same action type under the current policy.

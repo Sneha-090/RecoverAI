@@ -18,7 +18,8 @@ from app.models.models import (Action, DecisionType, ReviewStatus, AuditLog,
 def expire_review_under_claim(db, action, now=None):
     """Caller must own the case claim. No commit and no external provider calls."""
     now = now or datetime.utcnow()
-    if (action.review_status != ReviewStatus.pending or action.review_deadline is None
+    if (action is None or action.decision_type != DecisionType.human_review
+            or action.review_status != ReviewStatus.pending or action.review_deadline is None
             or action.review_deadline > now):
         return False, True
     action.review_status = ReviewStatus.expired

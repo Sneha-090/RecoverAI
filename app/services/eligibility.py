@@ -46,7 +46,7 @@ def is_recovery_eligible(payment) -> tuple[bool, str]:
 def _count_previous_retries(db, payment_id: str) -> int:
     return (
         db.query(Action)
-        .filter(Action.payment_id == payment_id, Action.action_type == "retry")
+        .filter(Action.payment_id == payment_id, Action.action_type == "retry", Action.decision_type == "auto")
         .count()
     )
 
@@ -54,7 +54,7 @@ def _count_previous_retries(db, payment_id: str) -> int:
 def _hours_since_last_retry(db, payment_id: str):
     last_action = (
         db.query(Action)
-        .filter(Action.payment_id == payment_id, Action.action_type == "retry")
+        .filter(Action.payment_id == payment_id, Action.action_type == "retry", Action.decision_type == "auto")
         .order_by(Action.chosen_at.desc())
         .first()
     )
