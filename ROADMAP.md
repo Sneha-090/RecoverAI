@@ -1,6 +1,6 @@
 # RecoverAI: verified state and improvement plan
 
-Reviewed 5 November 2026. This is a repository review, not a production readiness
+Reviewed 6 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
 synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
 credentials, initialized database tables, and a completed provider-origin
@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  286 passing tests including reviewed reconciliation, dashboard login, early-event replay, and attribution.
+  350 passing tests including deadline maintenance, approval policy, exact money conversion, reconciliation and webhook replay.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -104,21 +104,29 @@ cancel previously issued provider links/orders. Add supported provider cleanup
 and reconciliation before promising protection from multiple payments.
 Do not blindly expire claims or promise exactly-once external charges.
 
-### 3. Complete review and retry lifecycle
+### 3. Review deadlines and approval policy (implemented); polling remains
 
-Evidence: `app/services/escalation.py` defines review expiry but no background
-scheduler invokes it. Expired reviews can leave waiting reservations. Automatic
-scoring excludes an action type once executed, so the configurable three-retry
-limit does not currently imply three actual retries. Human approval does not
-reject every previously tried action.
+Implemented: a bounded local deadline worker expires overdue reviews without
+contacting the provider. Review status, failed-case closure, audit and review
+claim cleanup commit together. Concurrent approvals and competing expiry
+workers share the same case claims; processing/reconciliation/awaiting-outcome
+claims are not taken over. Expiry at approval time uses the same closure path.
+Recovered cases remain recovered, and a verified late capture can still settle
+an expired case. The worker operates without an open dashboard while its
+process is running; it does not register itself as an OS startup service.
 
-Schedule expiry and pending-outcome checks; clean up claims through explicit
-state transitions. Define whether a case permits one retry or multiple governed
-attempts, and apply the same policy to human selections. Add fraud-stop and
-customer-opt-out checks.
+Automatic and human decisions now use the same one-execution-per-action-type
+rule. Pending/expired/actioned review recommendations do not consume retry
+budgets or cooling-off time; executed retries do. `MAX_RETRY_ATTEMPTS` is an
+upper bound, not a promise to execute that many retries under this policy.
 
-Done when policy settings match actual behavior, timeout handling works without
-an open dashboard, and an approval cannot bypass limits or repeat settled work.
+Provider order/link requests now use the same exact Decimal-to-paise conversion
+as stored execution expectations. Rs.19.90 becomes 1,990 paise; invalid or
+fractional-paise amounts are rejected before a provider request.
+
+Remaining: scheduled pending-outcome checks, reviewed crash recovery, provider
+resource cleanup, and explicit fraud-stop/customer-opt-out rules. The worker
+must be supervised/restarted for continuous operation.
 
 ## Make the ML and business story defensible
 

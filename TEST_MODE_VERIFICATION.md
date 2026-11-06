@@ -81,3 +81,20 @@ sanitized errors, stale-preview rejection and read-only held-event display.
 The authenticated dashboard was started locally from `D:\RecoverAI` on
 `http://127.0.0.1:8501`. Existing local data was not replaced with demo cases.
 This verification does not claim a new provider-origin reconciliation exercise.
+
+
+## Deadline maintenance and amount correctness — 6 November 2026
+
+Local regression tests cover atomic review expiry, exact deadline boundaries,
+rollback, competing workers, expiry/approval races and late successful capture
+after expiry. Approval tests cover repeated-action rejection and executed-only
+retry counting. Exact-money tests reproduce and fix the binary-float conversion
+of Rs.19.90 to 1,989 rather than 1,990 paise. These tests use mocked provider
+responses; this upgrade does not claim a new provider-origin payment exercise.
+
+A local maintenance batch completed with zero overdue reviews. The previously
+verified test case remained recovered. The deadline worker was started from
+`D:\RecoverAI` in watch mode; it runs only while its process is active.
+
+The final combined local suite passed all 350 tests. No new provider resources
+were created by the maintenance or exact-money regression tests.
