@@ -1393,3 +1393,21 @@ hash. Its temporary file stays on the same drive and is ignored by Git. Restart
 the dashboard and any operator API process afterward so the new hash is loaded
 and existing sessions are invalidated. Never send passwords or `.env` contents
 in chat or commit them to Git.
+
+### Automatically expire human reviews
+
+Run the deadline worker separately from the webhook replay worker:
+
+```powershell
+python -m scripts.maintain_reviews --watch --interval 60
+```
+
+For one bounded pass, use `python -m scripts.maintain_reviews --limit 100`.
+It expires overdue reviews, closes an otherwise failed case once no pending
+reviews remain, and releases only its own review reservation. Expiry, case
+state and audit are committed together. Another active operation or uncertain
+provider outcome is never reset, and timeouts never authorize a payment action.
+Already recovered/captured cases are preserved; verified late captures can
+still settle an expired case. Multiple workers and concurrent approvals use
+the same case claims. The worker requires the same database/configuration as
+the app, runs only while its process is active, and stays quiet when idle.
