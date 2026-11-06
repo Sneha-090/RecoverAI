@@ -10,6 +10,7 @@ from datetime import datetime
 
 from app.config import settings
 from app.services.ml_service import predict_all_actions
+from app.services.policy import select_recovery_action
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.models.models import Action
 
@@ -37,69 +38,13 @@ def decide_from_predictions(
     retry_reason: str,
     excluded_actions: set | None = None,
 ) -> dict:
-    excluded_actions = excluded_actions or set()
-
-    candidates = {
-        action: prob
-        for action, prob in predictions.items()
-        if action not in excluded_actions
-    }
-    if not retry_eligible:
-        candidates.pop("retry", None)
-
-    if not candidates:
-        reason = retry_reason if not retry_eligible else "all candidate actions already tried"
-        return {
-            "chosen_action": None,
-            "decision_type": "skip",
-            "reason": f"no action remains eligible ({reason})",
-        }
-
-    scored = {
-        action: score_action(prob, payment.amount, action)
-        for action, prob in candidates.items()
-    }
-
-    best_action = max(scored, key=scored.get)
-    best_score = scored[best_action]
-    best_prob = candidates[best_action]
-
-    if best_score <= settings.score_floor:
-        return {
-            "chosen_action": None,
-            "decision_type": "skip",
-            "reason": f"no eligible action scores above floor (best: {best_action} @ {best_score:.2f})",
-        }
-
-    in_confidence_band = settings.confidence_band_low <= best_prob <= settings.confidence_band_high
-    high_value = payment.amount > settings.human_review_amount_threshold
-
-    if in_confidence_band or high_value:
-        reason_bits = []
-        if in_confidence_band:
-            reason_bits.append(
-                f"confidence {best_prob:.2f} in uncertain band "
-                f"[{settings.confidence_band_low}-{settings.confidence_band_high}]"
-            )
-        if high_value:
-            reason_bits.append(
-                f"amount {payment.amount} exceeds human-review threshold "
-                f"{settings.human_review_amount_threshold}"
-            )
-        return {
-            "chosen_action": best_action,
-            "decision_type": "human_review",
-            "reason": "; ".join(reason_bits),
-        }
-
-    return {
-        "chosen_action": best_action,
-        "decision_type": "auto",
-        "reason": (
-            f"best eligible action {best_action} scored {best_score:.2f} "
-            f"(P={best_prob:.2f}), above threshold and outside uncertain band"
-        ),
-    }
+    return select_recovery_action(
+        payment.amount, predictions, retry_eligible, retry_reason, excluded_actions,
+        action_costs=ACTION_COSTS, score_floor=settings.score_floor,
+        confidence_band_low=settings.confidence_band_low,
+        confidence_band_high=settings.confidence_band_high,
+        human_review_amount_threshold=settings.human_review_amount_threshold,
+    )
 
 
 def get_tried_actions(db, payment_id: str) -> set:
