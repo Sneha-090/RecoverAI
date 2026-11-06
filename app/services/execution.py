@@ -19,6 +19,7 @@ from app.models.models import (Action, AuditLog, DecisionType, ReviewStatus, Pay
                                Outcome, ExecutionOutcome, RecoveryReservation, RecoveryIntent)
 from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
 from app.services.execution_records import record_execution, resolve_execution
+from app.services.escalation import expire_review_under_claim
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -378,9 +379,10 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     if chosen_action not in {"retry", "payment_link", "alt_method"}:
         return {"success": False, "status": "pending_review", "reason": "Unknown recovery action."}
     if action_row.review_deadline and action_row.review_deadline <= datetime.utcnow():
-        action_row.review_status = ReviewStatus.expired
+        _, other_pending = expire_review_under_claim(db, action_row)
         db.commit()
-        return {"success": False, "reason": "Human review deadline has passed."}
+        return {"success": False, "status": "pending_review" if other_pending else "review_expired",
+                "reason": "Human review deadline has passed. No action executed."}
 
     payment = db.query(Payment).filter_by(payment_id=payment_id).first()
     if payment is None:
