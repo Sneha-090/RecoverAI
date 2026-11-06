@@ -1423,3 +1423,21 @@ Provider requests and stored execution expectations now share exact Decimal
 conversion from rupees to paise. For example, Rs.19.90 is sent as 1,990 paise,
 not the 1,989 produced by truncating a binary float. Non-positive, non-finite
 amounts and fractional paise are rejected before the provider request.
+
+
+### Matched policy benchmark
+
+Run `python -m ML.benchmark_policies` without provider credentials. The
+[benchmark report](reports/POLICY_BENCHMARK.md) compares guarded blanket retry,
+fixed cause rules, ML value ranking and the application's guarded ML selector.
+Each policy receives the same held-out contexts, fixed synthetic action labels,
+costs and one-intervention budget. The model is fitted on training groups only.
+Five predefined group splits and a paired bootstrap expose uncertainty; context
+counts from overlapping splits must not be pooled.
+
+The result does not establish ML superiority over cause rules. Deferred human
+reviews remain unresolved in this benchmark, so guarded metrics describe
+immediate automatic recovery rather than total recovery after review. Full
+assumptions, per-split results, hashes and auditable decisions are included.
+Legacy dashboard simulations are not this benchmark and do not prove merchant
+revenue uplift.

@@ -1,0 +1,402 @@
+{
+  "schema_version": 1,
+  "scope": "synthetic single-intervention policy benchmark; not merchant uplift",
+  "dataset_sha256": "8278739e55f0787ca47a024bebf7c7e33c5808d4311c72c59e2f7b83ecb49e2b",
+  "benchmark_code_sha256": "99ecd67bbe6b1aa527c6877d98b4e467074744aae83448d4c1ae78ab6e655771",
+  "selector_code_sha256": "dd2415c1e9e20acd4136d3bcfc368c4913d649fd017f8fa7be1e7c6caaf2ca5f",
+  "sklearn_version": "1.9.0",
+  "config": {
+    "costs": {
+      "retry": 5.0,
+      "payment_link": 15.0,
+      "alt_method": 10.0
+    },
+    "max_recovery_days": 14,
+    "max_prior_retries": 3,
+    "human_review_amount_threshold": 50000.0,
+    "score_floor": 0.0,
+    "confidence_band_low": 0.4,
+    "confidence_band_high": 0.6,
+    "intervention_budget": 1
+  },
+  "primary_seed": 42,
+  "seeds": [
+    11,
+    29,
+    42,
+    73,
+    101
+  ],
+  "splits": [
+    {
+      "seed": 11,
+      "train_contexts": 1600,
+      "test_contexts": 400,
+      "overlapping_contexts": 0,
+      "model_sha256": "ed05176713178ba00dc3f7481913ad6f295aa49e13b1161055ff513beac614bb",
+      "policies": {
+        "blanket_retry": {
+          "contexts": 400,
+          "interventions": 285,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 115,
+          "recovered": 86,
+          "gross_recovered_rupees": 73171.43,
+          "action_cost_rupees": 1425.0,
+          "net_recovered_rupees": 71746.43,
+          "recovery_rate": 0.215,
+          "interventions_per_context": 0.7125
+        },
+        "cause_rules": {
+          "contexts": 400,
+          "interventions": 372,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 28,
+          "recovered": 126,
+          "gross_recovered_rupees": 114412.18,
+          "action_cost_rupees": 3780.0,
+          "net_recovered_rupees": 110632.18,
+          "recovery_rate": 0.315,
+          "interventions_per_context": 0.93
+        },
+        "ml_value_only": {
+          "contexts": 400,
+          "interventions": 370,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 30,
+          "recovered": 123,
+          "gross_recovered_rupees": 103989.48,
+          "action_cost_rupees": 4250.0,
+          "net_recovered_rupees": 99739.48,
+          "recovery_rate": 0.3075,
+          "interventions_per_context": 0.925
+        },
+        "ml_guarded": {
+          "contexts": 400,
+          "interventions": 291,
+          "reviewed_later_not_simulated": 79,
+          "skipped": 30,
+          "recovered": 78,
+          "gross_recovered_rupees": 63959.01,
+          "action_cost_rupees": 3405.0,
+          "net_recovered_rupees": 60554.01,
+          "recovery_rate": 0.195,
+          "interventions_per_context": 0.7275
+        }
+      }
+    },
+    {
+      "seed": 29,
+      "train_contexts": 1600,
+      "test_contexts": 400,
+      "overlapping_contexts": 0,
+      "model_sha256": "2dfcdc7db5a0ba8abe1815f32a3ef1f4ac840245ba16cf6c088fb4c2f372ca27",
+      "policies": {
+        "blanket_retry": {
+          "contexts": 400,
+          "interventions": 286,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 114,
+          "recovered": 92,
+          "gross_recovered_rupees": 92042.19,
+          "action_cost_rupees": 1430.0,
+          "net_recovered_rupees": 90612.19,
+          "recovery_rate": 0.23,
+          "interventions_per_context": 0.715
+        },
+        "cause_rules": {
+          "contexts": 400,
+          "interventions": 379,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 21,
+          "recovered": 118,
+          "gross_recovered_rupees": 121009.82,
+          "action_cost_rupees": 3725.0,
+          "net_recovered_rupees": 117284.82,
+          "recovery_rate": 0.295,
+          "interventions_per_context": 0.9475
+        },
+        "ml_value_only": {
+          "contexts": 400,
+          "interventions": 377,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 23,
+          "recovered": 118,
+          "gross_recovered_rupees": 121009.82,
+          "action_cost_rupees": 3695.0,
+          "net_recovered_rupees": 117314.82,
+          "recovery_rate": 0.295,
+          "interventions_per_context": 0.9425
+        },
+        "ml_guarded": {
+          "contexts": 400,
+          "interventions": 307,
+          "reviewed_later_not_simulated": 70,
+          "skipped": 23,
+          "recovered": 90,
+          "gross_recovered_rupees": 85067.27,
+          "action_cost_rupees": 3075.0,
+          "net_recovered_rupees": 81992.27,
+          "recovery_rate": 0.225,
+          "interventions_per_context": 0.7675
+        }
+      }
+    },
+    {
+      "seed": 42,
+      "train_contexts": 1600,
+      "test_contexts": 400,
+      "overlapping_contexts": 0,
+      "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d",
+      "policies": {
+        "blanket_retry": {
+          "contexts": 400,
+          "interventions": 284,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 116,
+          "recovered": 94,
+          "gross_recovered_rupees": 84771.94,
+          "action_cost_rupees": 1420.0,
+          "net_recovered_rupees": 83351.94,
+          "recovery_rate": 0.235,
+          "interventions_per_context": 0.71
+        },
+        "cause_rules": {
+          "contexts": 400,
+          "interventions": 373,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 27,
+          "recovered": 133,
+          "gross_recovered_rupees": 134744.9,
+          "action_cost_rupees": 3555.0,
+          "net_recovered_rupees": 131189.9,
+          "recovery_rate": 0.3325,
+          "interventions_per_context": 0.9325
+        },
+        "ml_value_only": {
+          "contexts": 400,
+          "interventions": 370,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 30,
+          "recovered": 129,
+          "gross_recovered_rupees": 134454.07,
+          "action_cost_rupees": 4000.0,
+          "net_recovered_rupees": 130454.07,
+          "recovery_rate": 0.3225,
+          "interventions_per_context": 0.925
+        },
+        "ml_guarded": {
+          "contexts": 400,
+          "interventions": 301,
+          "reviewed_later_not_simulated": 69,
+          "skipped": 30,
+          "recovered": 91,
+          "gross_recovered_rupees": 101494.7,
+          "action_cost_rupees": 3365.0,
+          "net_recovered_rupees": 98129.7,
+          "recovery_rate": 0.2275,
+          "interventions_per_context": 0.7525
+        }
+      }
+    },
+    {
+      "seed": 73,
+      "train_contexts": 1600,
+      "test_contexts": 400,
+      "overlapping_contexts": 0,
+      "model_sha256": "f6b71c1580e06da4ac6536f925beb48fedcae9673bf09fa4ceebc0bb9ee7d6d4",
+      "policies": {
+        "blanket_retry": {
+          "contexts": 400,
+          "interventions": 274,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 126,
+          "recovered": 87,
+          "gross_recovered_rupees": 81461.15,
+          "action_cost_rupees": 1370.0,
+          "net_recovered_rupees": 80091.15,
+          "recovery_rate": 0.2175,
+          "interventions_per_context": 0.685
+        },
+        "cause_rules": {
+          "contexts": 400,
+          "interventions": 374,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 26,
+          "recovered": 120,
+          "gross_recovered_rupees": 111942.35,
+          "action_cost_rupees": 3815.0,
+          "net_recovered_rupees": 108127.35,
+          "recovery_rate": 0.3,
+          "interventions_per_context": 0.935
+        },
+        "ml_value_only": {
+          "contexts": 400,
+          "interventions": 371,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 29,
+          "recovered": 122,
+          "gross_recovered_rupees": 112871.76,
+          "action_cost_rupees": 4230.0,
+          "net_recovered_rupees": 108641.76,
+          "recovery_rate": 0.305,
+          "interventions_per_context": 0.9275
+        },
+        "ml_guarded": {
+          "contexts": 400,
+          "interventions": 299,
+          "reviewed_later_not_simulated": 72,
+          "skipped": 29,
+          "recovered": 84,
+          "gross_recovered_rupees": 85017.45,
+          "action_cost_rupees": 3525.0,
+          "net_recovered_rupees": 81492.45,
+          "recovery_rate": 0.21,
+          "interventions_per_context": 0.7475
+        }
+      }
+    },
+    {
+      "seed": 101,
+      "train_contexts": 1600,
+      "test_contexts": 400,
+      "overlapping_contexts": 0,
+      "model_sha256": "aa690d43048da4baa974763b1df66d7eb820ae132bd0cb7238e99f541e4a9cb1",
+      "policies": {
+        "blanket_retry": {
+          "contexts": 400,
+          "interventions": 288,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 112,
+          "recovered": 95,
+          "gross_recovered_rupees": 96866.2,
+          "action_cost_rupees": 1440.0,
+          "net_recovered_rupees": 95426.2,
+          "recovery_rate": 0.2375,
+          "interventions_per_context": 0.72
+        },
+        "cause_rules": {
+          "contexts": 400,
+          "interventions": 377,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 23,
+          "recovered": 118,
+          "gross_recovered_rupees": 129575.49,
+          "action_cost_rupees": 3670.0,
+          "net_recovered_rupees": 125905.49,
+          "recovery_rate": 0.295,
+          "interventions_per_context": 0.9425
+        },
+        "ml_value_only": {
+          "contexts": 400,
+          "interventions": 374,
+          "reviewed_later_not_simulated": 0,
+          "skipped": 26,
+          "recovered": 124,
+          "gross_recovered_rupees": 138175.55,
+          "action_cost_rupees": 4005.0,
+          "net_recovered_rupees": 134170.55,
+          "recovery_rate": 0.31,
+          "interventions_per_context": 0.935
+        },
+        "ml_guarded": {
+          "contexts": 400,
+          "interventions": 299,
+          "reviewed_later_not_simulated": 75,
+          "skipped": 26,
+          "recovered": 89,
+          "gross_recovered_rupees": 105146.92,
+          "action_cost_rupees": 3305.0,
+          "net_recovered_rupees": 101841.92,
+          "recovery_rate": 0.2225,
+          "interventions_per_context": 0.7475
+        }
+      }
+    }
+  ],
+  "bootstrap": {
+    "method": "paired context percentile bootstrap on primary split",
+    "seed": 2026,
+    "repetitions": 2000
+  },
+  "primary_comparisons": {
+    "blanket_retry": {
+      "net_delta_rupees": -47837.96,
+      "net_delta_95_percentile_interval": [
+        -80771.59999999999,
+        -18731.05425
+      ],
+      "recovery_rate_delta": -0.0975,
+      "rate_delta_95_percentile_interval": [
+        -0.14,
+        -0.055
+      ]
+    },
+    "ml_value_only": {
+      "net_delta_rupees": -735.8300000000004,
+      "net_delta_95_percentile_interval": [
+        -12971.9225,
+        13456.135249999996
+      ],
+      "recovery_rate_delta": -0.01,
+      "rate_delta_95_percentile_interval": [
+        -0.035,
+        0.015
+      ]
+    },
+    "ml_guarded": {
+      "net_delta_rupees": -33060.200000000004,
+      "net_delta_95_percentile_interval": [
+        -50707.89274999999,
+        -14531.180500000004
+      ],
+      "recovery_rate_delta": -0.105,
+      "rate_delta_95_percentile_interval": [
+        -0.1425,
+        -0.0675
+      ]
+    }
+  },
+  "mean_across_splits": {
+    "blanket_retry": {
+      "net_recovered_rupees": 84245.582,
+      "recovery_rate": 0.227,
+      "interventions": 283.4,
+      "reviewed_later_not_simulated": 0.0
+    },
+    "cause_rules": {
+      "net_recovered_rupees": 118627.948,
+      "recovery_rate": 0.3075,
+      "interventions": 375.0,
+      "reviewed_later_not_simulated": 0.0
+    },
+    "ml_value_only": {
+      "net_recovered_rupees": 118064.13599999998,
+      "recovery_rate": 0.308,
+      "interventions": 372.4,
+      "reviewed_later_not_simulated": 0.0
+    },
+    "ml_guarded": {
+      "net_recovered_rupees": 84802.06999999999,
+      "recovery_rate": 0.21600000000000003,
+      "interventions": 299.4,
+      "reviewed_later_not_simulated": 73.0
+    }
+  },
+  "assumptions": [
+    "Each synthetic context supplies one fixed potential-outcome label for every action; selectors cannot inspect labels.",
+    "All policies share the same test contexts, costs, one-intervention budget and recovery-window/high-value guards.",
+    "The dataset lacks retry-specific history/cooling-off timestamps: prior attempts are assumed failed retries and cooling-off satisfied.",
+    "Cause rules are fixed before evaluation; no rule or threshold is tuned to these results.",
+    "ml_guarded reuses application confidence deferral; ml_value_only is an ablation with that deferral disabled.",
+    "Deferred human reviews contribute zero immediate recovery and no action cost; reviewer labor or later decisions are not simulated."
+  ],
+  "limitations": [
+    "Synthetic potential outcomes cannot establish real intervention effectiveness or merchant revenue uplift.",
+    "No sequential retry uplift is estimated: outcomes were generated at the original context, not after new attempts.",
+    "Repeated split test sets overlap across runs; their counts must not be pooled as independent customers.",
+    "Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.",
+    "The model is refitted on each training partition only; the application model file and merchant database are untouched."
+  ],
+  "decisions_sha256": "579f5d5bbf5873ad02ff3b70e0f98b3ee1a3f9175081ceba10694c9257346f54"
+}

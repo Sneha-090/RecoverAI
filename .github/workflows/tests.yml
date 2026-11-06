@@ -28,6 +28,10 @@ jobs:
           python -m ML.train_model
           --model "${{ runner.temp }}/recovery_model.joblib"
           --report "${{ runner.temp }}/evaluation.json"
+      - name: Reproduce matched synthetic policy benchmark
+        run: >-
+          python -m ML.benchmark_policies
+          --output-dir "${{ runner.temp }}/policy-benchmark"
       - name: Save test and evaluation reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -38,3 +42,4 @@ jobs:
           path: |
             test-results.xml
             ${{ runner.temp }}/evaluation.json
+            ${{ runner.temp }}/policy-benchmark/
