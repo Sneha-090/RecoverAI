@@ -16,7 +16,7 @@ a production merchant deployment, an LLM assistant, or proof of revenue uplift.
 | --- | --- | --- |
 | [Matched policy benchmark](reports/POLICY_BENCHMARK.md) | Policy comparison on identical held-out synthetic contexts, costs and outcome labels | Real merchant ROI or ML superiority |
 | [Offline walkthrough](reports/OFFLINE_DEMO.md) / [interactive replay](reports/offline_demo.html) | Real service behavior under six controlled scenarios with a fake provider | A new live provider test |
-| [Razorpay verification record](TEST_MODE_VERIFICATION.md) | One actual hosted Test Mode failure-to-recovery checkout, plus later local checks | Real-money recovery or production readiness |
+| [Razorpay verification record](TEST_MODE_VERIFICATION.md) | Two historical hosted Test Mode recovery walkthroughs, plus API/configuration checks | Real-money recovery or production readiness |
 | Automated tests and CI | Regression coverage for authentication, concurrency, eligibility and recovery state | Complete correctness under every production failure |
 
 ### Benchmark result, including the limitation

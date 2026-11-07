@@ -127,3 +127,45 @@ GitHub Actions run 42365122519 completed successfully for code/dashboard commit
 17ed1b9, including regression tests, classifier evaluation, matched benchmark
 and offline demo reproduction. Later documentation commits have their own
 head-specific CI result; local success is not substituted for that result.
+
+
+## 7 November sequential upgrade verification
+
+Earlier on 7 November, a second manual hosted Test Mode walkthrough was verified:
+INR 499 failed, RecoverAI created one recovery link, the replacement payment was
+captured, and the original case became recovered with exactly one success
+outcome. This preceded the latest diagnosis/coverage changes. Its historical
+automatic decision is not a promise that a new generic failure will auto-execute:
+`payment_failed` now requires manual assessment.
+
+After the upgrades, the existing local Test Mode records contain three cases,
+two recovered cases and INR 998 recorded recovery amount. No synthetic demo cases
+were inserted into that database and no real merchant revenue is represented.
+
+A separate unpaid INR 100 provider API capability probe confirmed that Razorpay
+Test Mode accepts the alternate-method link request with card hidden, partial
+payments disabled, SMS/email notifications off and reminders off. Its intent
+notes preserved the excluded method. The newly created probe was fetched,
+verified unpaid and cancelled (`plink_TxMNrlVWi6c3sI`); no payment was attempted.
+This establishes API acceptance and cancellation, not hosted visual verification
+or a completed alternate-method customer payment.
+
+The updated local regression suite passed **477 tests** at code/test commit
+`df55cc4`. The six isolated offline scenarios passed with the selected model,
+coverage guards, recorded history features and refreshed source fingerprints.
+The model was selected on inner grouped validation and remains synthetic-only;
+its evaluation and matched policy benchmark still do not establish a clear
+merchant benefit. Reports preserve the limits and exact source/data provenance.
+
+The private API and dashboard responded successfully after restart, the approved
+public webhook accepted a signed harmless connection check, and public `/docs`,
+`/checkout` and `/.env` remained unavailable (404). The new pending-outcome worker
+started with no due live cases and no errors. New reviewed cleanup controls were
+checked with isolated provider doubles, including response loss, partial/paid
+links and active-case restrictions. Fresh hosted visual tests of each upgraded
+checkout flow remain separate; no browser-automation success is claimed.
+
+Only Test Mode/synthetic data is available, as confirmed by the owner. Real
+merchant validation remains out of scope until approved anonymised outcomes
+exist; see [the validation plan](data/MERCHANT_DATA_GUIDE.md). GitHub CI is checked
+per final commit; this local test count is not substituted for the cloud result.
