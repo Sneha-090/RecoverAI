@@ -16,7 +16,7 @@
   <input id="amountInput" type="number" min="0.01" max="10000000" step="0.01" placeholder="499.00">
   <button id="createBtn">Create test order</button>
   <p id="info" role="status" aria-live="polite"></p>
-  <button id="pay" disabled>Pay now (test mode)</button>
+  <button id="pay" disabled>Start new payment attempt (test mode)</button>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
     let currentOrder = null;
@@ -59,6 +59,7 @@
       currentOrder = order;
       orderInput.value = order.order_id;
       info.textContent = "Loaded " + order.order_id + " · " + order.currency + " " + (order.amount_paise / 100).toFixed(2);
+      info.textContent += ". " + order.checkout_note;
       pay.disabled = false;
     }
 

@@ -67,6 +67,10 @@ class DemoProvider:
                   'amount':resource['amount'], 'currency':resource['currency'],
                   'order_id':identity if kind == 'order' else f'order_DemoLink{self.captures:03d}',
                   'description':None if kind == 'order' else '#'+identity.removeprefix('plink_')}
+        methods = resource.get('options', {}).get('checkout', {}).get('method', {})
+        entity['method'] = next((method for method, enabled in methods.items() if enabled), 'card')
+        if kind == 'payment_link':
+            resource['payments'] = [{'payment_id': entity['id']}]
         self.payments[entity['id']] = entity
         if kind == 'order':
             self.order_attempts[identity].append(deepcopy(entity))

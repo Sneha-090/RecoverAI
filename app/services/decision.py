@@ -14,6 +14,7 @@ from app.services.diagnosis import diagnose
 from app.services.policy import select_recovery_action
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.models.models import Action
+from app.services.payment_methods import is_alt_method_eligible
 
 ACTION_COSTS = {
     "retry": settings.action_cost_retry,
@@ -62,7 +63,7 @@ def get_tried_actions(db, payment_id: str) -> set:
     return {row.action_type for row in rows}
 
 
-def _persist_decision_explanation(db, payment, predictions, retry_eligible, retry_reason, tried_actions):
+def _persist_decision_explanation(db, payment, predictions, retry_eligible, retry_reason, tried_actions, blocked_actions=None):
     """
     MODULE A - persistence only. Records what decide() already
     computed: the ML prediction for every action, and a cost-adjusted
@@ -95,6 +96,9 @@ def _persist_decision_explanation(db, payment, predictions, retry_eligible, retr
             eligible = True
             reason = "eligible - no additional restrictions currently checked for this action"
 
+        if action_type in (blocked_actions or {}):
+            eligible = False
+            reason = blocked_actions[action_type]
         if action_type in tried_actions:
             eligible = False
             reason = f"excluded from candidates - already tried in this recovery attempt ({reason})"
@@ -133,9 +137,11 @@ def decide(db, payment) -> dict:
     retry_eligible, retry_reason = is_retry_eligible(db, payment)
     predictions = predict_all_actions(db, payment)
     tried = get_tried_actions(db, payment.payment_id)
+    alt_eligible, alt_reason = is_alt_method_eligible(payment)
+    blocked = {} if alt_eligible else {"alt_method": alt_reason}
 
-    decision = decide_from_predictions(payment, predictions, retry_eligible, retry_reason, excluded_actions=tried)
+    decision = decide_from_predictions(payment, predictions, retry_eligible, retry_reason, excluded_actions=tried | set(blocked))
 
-    _persist_decision_explanation(db, payment, predictions, retry_eligible, retry_reason, tried)
+    _persist_decision_explanation(db, payment, predictions, retry_eligible, retry_reason, tried, blocked)
 
     return decision

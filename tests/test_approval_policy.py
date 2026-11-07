@@ -17,7 +17,7 @@ def approval_db():
     engine = create_engine('sqlite:///:memory:')
     Base.metadata.create_all(engine)
     with sessionmaker(bind=engine)() as db:
-        db.add(Payment(payment_id='pay_policy', amount=499, status='failed', razorpay_state='failed'))
+        db.add(Payment(payment_id='pay_policy', amount=499, payment_method='card', status='failed', razorpay_state='failed'))
         db.commit()
         yield db
     engine.dispose()

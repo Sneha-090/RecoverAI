@@ -25,7 +25,7 @@ def coverage_db():
     'expired_card', 'invalid_card', 'authentication_failed', 'payment_cancelled'])
 def test_untrained_or_unknown_cause_waits_for_assessment_without_predictions_or_provider(coverage_db, monkeypatch, reason):
     db = coverage_db
-    payment = Payment(payment_id='pay_unknown', amount=499, status='failed',
+    payment = Payment(payment_id='pay_unknown', amount=499, payment_method='card', status='failed',
                       razorpay_state='failed', razorpay_error_code='BAD_REQUEST_ERROR',
                       razorpay_error_reason=reason)
     db.add(payment); db.commit()
@@ -52,7 +52,7 @@ def test_untrained_or_unknown_cause_waits_for_assessment_without_predictions_or_
     ('insufficient_funds','alt_method'), ('gateway_technical_error','retry')])
 def test_supported_causes_keep_distinct_automatic_actions(coverage_db, monkeypatch, reason, action):
     db = coverage_db
-    payment = Payment(payment_id='pay_known', amount=499, status='failed', razorpay_state='failed',
+    payment = Payment(payment_id='pay_known', amount=499, payment_method='card', status='failed', razorpay_state='failed',
                       razorpay_error_reason=reason)
     db.add(payment); db.commit()
     order = Mock(return_value={'id':'order_known'})

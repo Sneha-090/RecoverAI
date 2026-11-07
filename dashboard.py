@@ -22,6 +22,7 @@ from app.models.models import (
     Payment,
     RecoveryScore,
     ReviewStatus,
+    RecoveryReservation,
 )
 from app.services.execution import human_review_action
 from app.ui.operator_login import require_dashboard_operator
@@ -81,41 +82,19 @@ st.caption(
 # =====================================================
 
 def get_recovery_order_info(payment_id: str):
-    """
-    Find the latest RecoverAI-created recovery order for a payment.
-
-    We inspect executed audit records and return the most recent
-    order-type recovery payload.
-    """
-    entries = (
-        db.query(AuditLog)
-        .filter(
-            AuditLog.payment_id == payment_id,
-            AuditLog.event_type == "executed",
-        )
-        .order_by(AuditLog.timestamp.desc())
-        .all()
-    )
-
-    for entry in entries:
-        if not entry.payload_json:
-            continue
-
-        try:
-            payload = json.loads(entry.payload_json)
-        except (TypeError, json.JSONDecodeError):
-            continue
-
-        if (
-            payload.get("type") == "order"
-            and payload.get("order_id")
-        ):
-            return {
-                "type": "order",
-                "order_id": payload["order_id"],
-            }
-
-    return None
+    """Only the latest active checkout; never offer an earlier completed resource."""
+    claim = db.get(RecoveryReservation, payment_id)
+    if claim is None or claim.state != 'awaiting_outcome':
+        return None
+    audit = db.query(AuditLog).filter(
+        AuditLog.payment_id == payment_id,
+        AuditLog.event_type.in_(['executed', 'human_approved_executed']),
+    ).order_by(AuditLog.timestamp.desc(), AuditLog.id.desc()).first()
+    try:
+        payload = json.loads(audit.payload_json) if audit else {}
+    except (TypeError, json.JSONDecodeError):
+        return None
+    return payload if payload.get('type') in {'order','payment_link'} else None
 
 
 # =====================================================
@@ -267,29 +246,27 @@ with tab_live:
                 payment.payment_id
             )
 
-            if (
-                recovery
-                and recovery["type"] == "order"
-            ):
-
+            if recovery and recovery['type'] == 'order':
                 recovery_action_found = True
-
-                checkout_url = (
-                    f"{settings.api_base_url.rstrip('/')}/checkout"
-                    f"?order_id={recovery['order_id']}"
-                    f"&amount={payment.amount}"
-                )
-
-                st.markdown(
-                    f"**{payment.payment_id}**  |  "
-                    f"Rs.{payment.amount:,.2f}  |  "
-                    f"[💳 Retry Payment]({checkout_url})"
-                )
+                checkout_url = f"{settings.api_base_url.rstrip('/')}/checkout?order_id={recovery['order_id']}"
+                st.markdown(f"**{payment.payment_id}** | Rs.{payment.amount:,.2f} | "
+                            f"[Open fresh retry checkout]({checkout_url})")
+                st.caption('Operator Test Mode checkout. The customer must explicitly make a new payment; no automatic debit occurs.')
+            elif recovery and recovery['type'] == 'payment_link':
+                from urllib.parse import urlparse
+                url = recovery.get('short_url') or ''
+                parsed = urlparse(url)
+                if parsed.scheme == 'https' and parsed.netloc in {'rzp.io','razorpay.com'}:
+                    recovery_action_found = True
+                    label = 'Open alternate-method checkout' if recovery.get('excluded_method') else 'Open recovery payment link'
+                    st.markdown(f"**{payment.payment_id}** | Rs.{payment.amount:,.2f} | [{label}]({url})")
+                    if recovery.get('excluded_method'):
+                        st.caption(f"Original method {recovery['excluded_method']} is hidden. Available checkout methods depend on the Razorpay account.")
 
         if not recovery_action_found:
 
             st.caption(
-                "No active RecoverAI retry payments available."
+                "No active recovery checkout is awaiting payment."
             )
 
 

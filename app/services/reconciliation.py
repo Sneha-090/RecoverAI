@@ -110,6 +110,15 @@ def _bind_verified_intent(db, payment, intent, provider_id):
     db.flush()
     payload = {"type": intent.provider_type,
                "order_id" if intent.provider_type == "order" else "payment_link_id": provider_id}
+    if intent.action_type == "alt_method" and intent.provider_type == "payment_link":
+        resource = client.payment_link.fetch(provider_id)
+        excluded = resource.get("notes", {}).get("recoverai_excluded_method")
+        if not excluded:
+            raise ReconciliationError("Alternate-method resource has no verified method policy; investigate before settlement.")
+        if excluded:
+            from app.services.payment_methods import alternate_methods
+            excluded, allowed = alternate_methods(excluded)
+            payload.update(excluded_method=excluded, available_methods=allowed)
     audit = AuditLog(payment_id=payment.payment_id, event_type="executed",
                      reason="Bound existing provider resource after operator verification",
                      payload_json=json.dumps(payload))

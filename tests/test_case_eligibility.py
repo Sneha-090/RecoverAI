@@ -26,7 +26,7 @@ def db():
 
 def make_payment(blocker=None):
     payment = Payment(
-        payment_id="pay_case_guard", amount=1000, status="failed",
+        payment_id="pay_case_guard", amount=1000, payment_method="card", status="failed",
         razorpay_state="failed", razorpay_error_reason="payment_declined", created_at=datetime.utcnow() - timedelta(days=1),
     )
     if blocker == "expired":

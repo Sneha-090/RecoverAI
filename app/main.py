@@ -1,7 +1,7 @@
 from app.api.webhooks import router as webhook_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Depends, Query, Request
+from fastapi import Depends, Query, Request, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
 from decimal import Decimal
@@ -12,7 +12,7 @@ from app.api.auth import require_operator
 
 from app.config import settings
 from app.db.session import SessionLocal
-from app.services.ml_service import predict_recovery
+from app.services.ml_service import predict_recovery, UnsupportedRecoveryCause
 from app.services.order_service import create_test_order
 from app.services.ingestion import fetch_and_store_payment
 from app.services.diagnosis import diagnose_and_store
@@ -124,14 +124,14 @@ class RecoveryRequest(BaseModel):
 
 @app.post("/predict", dependencies=PROTECTED)
 def predict(request: RecoveryRequest):
-    probability = predict_recovery(
-        amount=request.amount,
-        cause=request.cause,
-        attempts=request.attempts,
-        days_since_failure=request.days_since_failure,
-        past_rate=request.past_rate,
-        action_type=request.action_type,
-    )
+    try:
+        probability = predict_recovery(
+            amount=request.amount, cause=request.cause, attempts=request.attempts,
+            days_since_failure=request.days_since_failure, past_rate=request.past_rate,
+            action_type=request.action_type,
+        )
+    except UnsupportedRecoveryCause:
+        raise HTTPException(status_code=422, detail="This failure cause requires manual assessment; no trained prediction is available") from None
     return {
         "recovery_probability": probability,
         "recovery_percentage": round(probability * 100, 2),
@@ -165,4 +165,5 @@ def checkout_config(order_id: Annotated[str, Query(pattern=ORDER_ID)]):
     return {
         "key_id": settings.razorpay_key_id,
         "order_id": order["id"], "amount_paise": order["amount"], "currency": order["currency"],
+        "checkout_note": "A fresh checkout requires an explicit payment by the customer; no automatic debit is performed.",
     }

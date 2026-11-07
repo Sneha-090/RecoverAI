@@ -20,6 +20,7 @@ from app.models.models import (Action, AuditLog, DecisionType, ReviewStatus, Pay
 from app.services.reservations import reserve_recovery, finish_recovery, RecoveryInProgress
 from app.services.execution_records import record_execution, resolve_execution
 from app.services.escalation import expire_review_under_claim
+from app.services.payment_methods import alternate_methods, is_alt_method_eligible
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -88,8 +89,14 @@ def _create_recovery_resource(db, payment, action_type, human=False):
         desc = "RecoverAI recovery link" if action_type == "payment_link" else "RecoverAI: try an alternate payment method"
         if human:
             desc += " (human-approved)"
-        result = create_payment_link(payment.amount, description=desc, intent_id=intent.id)
+        options = {}
+        if action_type == "alt_method":
+            excluded, allowed = alternate_methods(payment.payment_method)
+            options["exclude_method"] = excluded
+        result = create_payment_link(payment.amount, description=desc, intent_id=intent.id, **options)
         payload = {"type": "payment_link", "payment_link_id": result["id"], "short_url": result.get("short_url")}
+        if action_type == "alt_method":
+            payload.update(excluded_method=excluded, available_methods=allowed)
     intent.provider_id = result["id"]
     db.commit()
     return payload, intent
@@ -165,6 +172,12 @@ def _execute_action(db, payment) -> dict:
                 "executed": False,
             }
 
+    if action_type == "alt_method":
+        eligible, reason = is_alt_method_eligible(payment)
+        if not eligible:
+            _log_audit(db, payment.payment_id, "alternate_method_blocked", reason)
+            return {"chosen_action": None, "decision_type": "skip", "reason": reason, "executed": False}
+
     payload, intent = _create_recovery_resource(db, payment, action_type)
 
     action_row = Action(
@@ -226,10 +239,27 @@ def _check_real_outcome(payload: dict) -> str:
                     or not _verified_amount(link, payload)
                     or link.get("amount_paid") != payload["expected_amount_paise"]):
                 raise ValueError("Paid recovery link does not match execution amount or currency")
+            if payload.get("excluded_method"):
+                _verify_alternate_capture(link, payload)
             return "success"
         return "failed" if link.get("status") in {"cancelled", "expired"} else "pending"
 
     raise ValueError("Unknown recovery payload type")
+
+
+def _verify_alternate_capture(link, payload):
+    for entry in link.get("payments", []):
+        payment_id = entry.get("payment_id") or entry.get("id")
+        if not payment_id:
+            continue
+        captured = client.payment.fetch(payment_id)
+        if captured.get("id") != payment_id or captured.get("status") != "captured" or not _verified_amount(captured, payload):
+            continue
+        if captured.get("method") == payload["excluded_method"]:
+            raise ValueError("Alternate recovery used the original failed method; operator investigation required")
+        if captured.get("method") in payload["available_methods"]:
+            return
+    raise ValueError("No captured payment with a verified alternate method is available")
 
 
 def _verified_amount(resource, payload):
@@ -402,6 +432,11 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
         eligible, reason = is_retry_eligible(db, payment)
         if not eligible:
             return {"success": False, "status": "pending_review", "reason": f"Retry not eligible: {reason}"}
+
+    if chosen_action == "alt_method":
+        eligible, reason = is_alt_method_eligible(payment)
+        if not eligible:
+            return {"success": False, "status": "pending_review", "reason": reason}
 
     payload, intent = _create_recovery_resource(db, payment, chosen_action, human=True)
 

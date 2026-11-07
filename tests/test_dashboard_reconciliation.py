@@ -243,3 +243,28 @@ def test_action_distribution_filters_sources_and_top_metrics_are_test_mode_only(
     app.selectbox(key='action_distribution_cause').select('Not recorded').run(timeout=25)
     assert not app.exception
     assert any('do not establish bias' in item.value for item in app.info)
+
+
+
+def test_only_latest_active_human_approved_checkout_is_offered(review_ui):
+    with review_ui() as db:
+        db.add(Payment(payment_id='pay_checkout_ui',amount=499,status='failed'))
+        db.add(RecoveryReservation(payment_id='pay_checkout_ui',owner='waiting',state='awaiting_outcome'))
+        db.add_all([
+            AuditLog(payment_id='pay_checkout_ui',event_type='executed',
+                     timestamp=datetime.utcnow()-timedelta(minutes=1),
+                     payload_json=json.dumps({'type':'order','order_id':'order_older'})),
+            AuditLog(payment_id='pay_checkout_ui',event_type='human_approved_executed',
+                     payload_json=json.dumps({'type':'payment_link','payment_link_id':'plink_current',
+                                             'short_url':'https://rzp.io/rzp/testCurrent','excluded_method':'card'})),
+        ])
+        db.commit()
+    app = login(AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'dashboard.py')).run(timeout=25))
+    text = ' '.join(item.value for item in app.markdown)
+    assert 'Open alternate-method checkout' in text and 'https://rzp.io/rzp/testCurrent' in text
+    assert 'order_older' not in text
+    with review_ui() as db:
+        db.get(Payment,'pay_checkout_ui').status = 'recovered'; db.commit()
+    app.run(timeout=25)
+    assert not app.exception
+    assert not any('https://rzp.io/rzp/testCurrent' in item.value for item in app.markdown)

@@ -262,3 +262,20 @@ assessments, and shows the denominator and unprocessed cases. Cause-wise counts
 help inspect case mix; unequal action shares are not evidence of bias or causal
 effectiveness. The tab is descriptive, and does not combine synthetic evidence
 with provider Test Mode records or present Test Mode money as merchant revenue.
+
+
+### Distinct checkout actions
+
+`retry` creates a fresh order opened through the authenticated operator Test Mode
+checkout; it never automatically debits a card. `payment_link` creates an ordinary
+hosted link. `alt_method` creates a link whose documented checkout method options
+hide the original failed method (card, UPI, netbanking or wallet). Missing or
+unsupported original methods make `alt_method` ineligible, including at approval.
+New alternate-method recoveries verify a captured payment used an allowed different
+method before settlement. Lost responses preserve this policy in provider intent
+notes, so reviewed reconciliation performs the same check. Existing legacy
+executions retain their recorded semantics. Checkout availability still depends
+on merchant/account configuration; display customisation is not a payment-network
+restriction. SMS/email notifications and provider reminders are disabled.
+
+API reference: https://tfs.np.razorpay.in/docs/api/payments/payment-links/customise-payment-methods

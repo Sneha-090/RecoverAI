@@ -112,6 +112,7 @@ def test_checkout_uses_provider_amount_and_only_exposes_public_key(client, opera
     assert response.json() == {
         "key_id": settings.razorpay_key_id, "order_id": "order_test123",
         "amount_paise": 49900, "currency": "INR",
+        "checkout_note": "A fresh checkout requires an explicit payment by the customer; no automatic debit is performed.",
     }
     page = client.get("/checkout", auth=operator)
     assert page.status_code == 200
@@ -147,3 +148,12 @@ def test_prediction_inputs_are_bounded(client, operator, field, value):
                "days_since_failure": 1, "past_rate": 0.5, "action_type": "retry"}
     payload[field] = value
     assert client.post("/predict", json=payload, auth=operator).status_code == 422
+
+
+
+def test_untrained_prediction_returns_actionable_validation_error(client, operator):
+    response = client.post('/predict', auth=operator, json={
+        'amount':499,'cause':'expired_card','attempts':0,'days_since_failure':0,
+        'past_rate':.5,'action_type':'payment_link'})
+    assert response.status_code == 422
+    assert 'manual assessment' in response.json()['detail']
