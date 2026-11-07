@@ -24,6 +24,7 @@ def test_alternate_checkout_hides_failed_method_and_never_sends_messages(monkeyp
     assert request['notes'] == {'recoverai_intent_id':'intent','recoverai_excluded_method':failed}
     assert request['notify'] == {'sms':False,'email':False}
     assert request['reminder_enable'] is False
+    assert request['accept_partial'] is False
 
 
 def test_unknown_original_method_does_not_create_a_fake_alternative(monkeypatch):

@@ -234,6 +234,11 @@ def _check_real_outcome(payload: dict) -> str:
 
     if payload["type"] == "payment_link":
         link = client.payment_link.fetch(payload["payment_link_id"])
+        paid_amount = link.get('amount_paid', 0)
+        if not isinstance(paid_amount, int) or isinstance(paid_amount, bool) or paid_amount < 0:
+            raise ValueError('Provider paid amount requires reconciliation')
+        if paid_amount > 0 and (paid_amount != payload['expected_amount_paise'] or link.get('status') != 'paid'):
+            raise ValueError('Partial or inconsistent recovery payment requires reconciliation; no new full-amount checkout')
         if link.get("status") == "paid":
             if (link.get("id") != payload["payment_link_id"]
                     or not _verified_amount(link, payload)

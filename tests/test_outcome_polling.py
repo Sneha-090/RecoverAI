@@ -101,3 +101,18 @@ def test_followup_worker_refuses_live_credentials(monkeypatch):
     monkeypatch.setattr(settings,'razorpay_key_id','rzp_live_not_authorized')
     with pytest.raises(ValueError,match='Test Mode only'):
         poll_pending_outcomes()
+
+
+
+@pytest.mark.parametrize('status',['partially_paid','expired','cancelled'])
+def test_partial_payment_never_advances_to_another_full_amount_checkout(polling,monkeypatch,status):
+    value=link(status);value['amount_paid']=10000
+    monkeypatch.setattr('app.services.execution.client.payment_link.fetch',lambda _:value)
+    forbidden=Mock(side_effect=AssertionError('Partial payment must not trigger full-amount collection'))
+    monkeypatch.setattr('app.services.execution.create_test_order',forbidden)
+    monkeypatch.setattr('app.services.execution.create_payment_link',forbidden)
+    assert poll_pending_outcomes(session_factory=polling)['errors']==1
+    with polling() as db:
+        assert db.get(RecoveryReservation,'pay_poll').state=='needs_reconciliation'
+        assert db.query(Action).count()==1 and db.query(Outcome).count()==0
+    forbidden.assert_not_called()

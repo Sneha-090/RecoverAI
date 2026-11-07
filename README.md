@@ -219,15 +219,18 @@ Local passing tests and remote CI results are distinct; inspect the linked run.
 
 ## What remains limited
 
-- ML data and policy outcomes are synthetic; live ingestion does not populate
-  the customer-history features needed to validate real merchant performance.
+- ML data and policy outcomes are synthetic. Verified provider customer IDs now
+  link observed history when present; the current Test Mode examples have no
+  linked finalized customer history. Merchant performance remains unvalidated.
 - `retry` creates a new order requiring checkout; it is not an automatic charge.
-  `payment_link` and `alt_method` currently both create links, not distinct rails.
+  `alt_method` uses a hosted link with the failed method hidden and verifies
+  the captured alternate method; account configuration determines availability.
 - Successful recovery stops local follow-up but does not automatically cancel
   other provider resources. Processing crashes, unknown legacy references and
   exhausted/ambiguous events still require operational investigation.
-- Periodic pending-outcome polling, supervised worker restarts, dependency locks,
-  versioned migrations, multi-operator roles and public deployment controls remain.
+- Pending-outcome polling and reviewed unpaid-link cleanup are implemented.
+  Supervised worker restarts, dependency locks, versioned migrations,
+  multi-operator roles and public deployment controls remain.
 - Real merchant adoption, permissions and measured business outcomes require a
   separate pilot. No production revenue claim is supported by these artifacts.
 
@@ -359,3 +362,9 @@ cancelled at the provider. There is no claim that all external payment races can
 be prevented; a merchant pilot still needs duplicate-charge investigation.
 
 Provider cancellation reference: https://razorpay.com/docs/api/payments/payment-links/cancel-standard/
+
+
+Partial or inconsistent paid amounts block further collection for reconciliation,
+including expired/cancelled legacy links. New links explicitly disable partial
+payments. The system does not automatically collect the full original amount
+again after observing a partial payment, or issue refunds.

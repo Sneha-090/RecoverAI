@@ -30,6 +30,7 @@ def create_payment_link(amount_rupees: float, description: str, intent_id: str |
         "amount": amount_paise(amount_rupees),
         "currency": "INR",
         "description": description,
+        "accept_partial": False,
         "reminder_enable": False,
         "notify": {"sms": False, "email": False},
     }

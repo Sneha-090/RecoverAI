@@ -150,8 +150,28 @@ the legacy `scripts.live_demo` entry point now uses this safe runner.
 ## Operational limits
 
 Workers must be running and supervised for continuous operation. Startup-service
-registration, automatic pending-outcome polling, lease-based crash recovery,
-provider cleanup, versioned migrations, dependency locks and a real merchant
-pilot remain separate work. Operator APIs/dashboard need deployment controls
+registration, lease-based crash recovery, versioned migrations, dependency locks
+and a real merchant pilot remain separate work. Pending-outcome polling now uses
+the normal claim/verification path. Closed-case unpaid links have explicit,
+Test Mode-only reviewed cleanup; paid/partial resources are never cancelled.
+Partial recovery payments block another full-amount collection for reconciliation. Operator APIs/dashboard need deployment controls
 before public exposure. These limits are part of the project evidence, not
 features claimed to be complete.
+
+
+## Current decision and operator features
+
+Generic failure reasons remain unclassified; unknown causes and numeric inputs
+outside the fitted training range require explicit manual assessment. The old
+probability-confidence band is replaced by a predeclared net-value near-tie guard.
+Candidate models are selected on inner grouped validation, then refitted on outer
+training groups; the policy benchmark repeats that same procedure. Recorded
+history features use only other finalized, evidenced customer cases, with an
+explicit default when identity/history is unavailable. New decisions save their
+exact feature snapshot. Search, status filters, readable event timelines and
+source-separated action distributions make the recorded decisions inspectable.
+
+Alternate-method checkout hides the original failed method and verifies captured
+method; retry is an explicit fresh checkout, never an automatic debit. Private
+checkout refuses inactive recovery orders. Cleanup of hosted links is separate
+from success settlement and cannot eliminate every external payment race.
