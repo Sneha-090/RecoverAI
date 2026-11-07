@@ -7,6 +7,7 @@ already been tried for this payment (Section 12's re-score loop).
 """
 
 from datetime import datetime
+import json
 
 from app.config import settings
 from app.services.ml_service import predict_all_actions, supported_recovery_causes
@@ -112,6 +113,12 @@ def _persist_decision_explanation(db, payment, predictions, retry_eligible, retr
             evaluated_at=now,
         ))
 
+    context = getattr(predictions, 'context', None)
+    if context is not None:
+        from app.models.models import AuditLog
+        db.add(AuditLog(payment_id=payment.payment_id, timestamp=now,
+                        event_type='decision_features', reason='Exact features used for recorded model probabilities',
+                        payload_json=json.dumps(context, allow_nan=False)))
     db.commit()
 
 

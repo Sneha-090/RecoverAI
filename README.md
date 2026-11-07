@@ -291,3 +291,15 @@ predeclared business rule, not an empirically established confidence interval.
 High-value and unsupported-cause reviews still apply. The matched benchmark uses
 the same selector and reports reviews as unresolved; it assumes supported
 original payment methods, which its synthetic table does not record.
+
+
+### Verified customer history
+
+Ingestion links only the provider's validated `cust_` identifier; contact details
+are not used to infer identity. Changed customer ownership is rejected. Model
+history is derived from other finalized cases with observed success or audited
+closure evidence available at decision time; current, pending, future and other
+customers' cases are excluded. Duplicate outcomes never duplicate cases. Missing
+history uses an explicit 50% neutral assumption. New decision explanations record
+the exact numeric/history feature snapshot; legacy customer counters are not
+silently treated as observed outcomes. No real customer history is fabricated.

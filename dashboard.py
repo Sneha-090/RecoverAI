@@ -817,6 +817,20 @@ with tab_explain:
                     == latest_time
                 ]
 
+                feature_audit = db.query(AuditLog).filter_by(
+                    payment_id=search_id, event_type='decision_features', timestamp=latest_time,
+                ).first()
+                if feature_audit:
+                    features = json.loads(feature_audit.payload_json)
+                    if features.get('uses_default_history'):
+                        st.caption('Recorded model input: no verified finalized customer history; neutral past-rate assumption 50%.')
+                    else:
+                        st.caption(f"Recorded model input: {features['history_cases']} finalized customer cases; "
+                                   f"historical recovery rate {features['past_rate']:.1%}. Selected case excluded.")
+                    st.caption(f"Executed attempts used by the model: {features['executed_attempts']}.")
+                else:
+                    st.caption('This older decision has no recorded feature snapshot; its exact history inputs are unavailable.')
+
                 st.dataframe(
                     pd.DataFrame(
                         [

@@ -5,7 +5,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from app.models.models import Action, Customer
+from app.models.models import Action
+from app.services.customer_history import customer_history, DEFAULT_PAST_RATE
 from app.services.diagnosis import diagnose
 
 
@@ -80,8 +81,6 @@ CANDIDATE_ACTIONS = [
     "alt_method",
 ]
 
-DEFAULT_PAST_RATE = 0.5  # neutral assumption when no customer history exists
-
 
 def _get_attempts_so_far(db, payment_id: str) -> int:
     """Count executed actions, including approvals; recommendations are not attempts."""
@@ -92,32 +91,16 @@ def _get_attempts_so_far(db, payment_id: str) -> int:
     )
 
 
-def _get_past_rate(
-    db,
-    customer_id: str | None,
-) -> float:
-    """
-    Looks up the customer's historical recovery rate.
+def _get_past_rate(db, customer_id, current_payment_id=None):
+    return customer_history(db, customer_id, current_payment_id)['past_rate']
 
-    Falls back to a neutral default if no customer_id
-    or no record exists.
-    """
-    if not customer_id:
-        return DEFAULT_PAST_RATE
 
-    customer = (
-        db.query(Customer)
-        .filter(Customer.customer_id == customer_id)
-        .first()
-    )
+class RecoveryPredictions(dict):
+    """Normal probability mapping carrying the exact non-identifying feature snapshot."""
 
-    if not customer or customer.previous_failures == 0:
-        return DEFAULT_PAST_RATE
-
-    return (
-        customer.previous_recoveries
-        / customer.previous_failures
-    )
+    def __init__(self, values, context):
+        super().__init__(values)
+        self.context = context
 
 
 def _get_days_since_failure(payment) -> int:
@@ -147,10 +130,8 @@ def predict_all_actions(db, payment) -> dict:
         payment
     )
 
-    past_rate = _get_past_rate(
-        db,
-        payment.customer_id,
-    )
+    history = customer_history(db, payment.customer_id, payment.payment_id)
+    past_rate = history['past_rate']
 
     predictions = {}
 
@@ -164,4 +145,8 @@ def predict_all_actions(db, payment) -> dict:
             action_type=action_type,
         )
 
-    return predictions
+    return RecoveryPredictions(predictions, {
+        'amount':payment.amount, 'cause':cause, 'executed_attempts':attempts,
+        'days_since_failure':days_since_failure, 'past_rate':past_rate,
+        'history_cases':history['finalized_cases'], 'uses_default_history':history['uses_default'],
+    })
