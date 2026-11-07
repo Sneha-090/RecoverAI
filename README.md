@@ -330,3 +330,16 @@ Live cases support literal payment-ID search and case-status filtering, capped a
 Decision Explanation includes a bounded chronological activity timeline with
 readable event names and validated provider references. Raw webhook payloads,
 contact details and unstructured exception text are never rendered in that view.
+
+
+### Pending payment follow-up
+
+Run `.venv\Scripts\python.exe -m scripts.poll_outcomes --watch` in a separate
+terminal. Each batch checks at most 25 due `awaiting_outcome` Test Mode cases,
+with a 60-second per-case cooling period. It uses the same exclusive claim and
+verified execution attribution as webhooks. Paid cases settle once; unpaid cases
+stay pending; terminal failed attempts follow the normal guarded policy. Active,
+review and reconciliation claims are never taken over. Provider errors remain
+blocked for review. Provider requests have 5-second connect / 20-second read
+socket timeouts; no SMS/email notifications are sent by this worker. The worker
+must stay running; operating-system supervision is not configured here.
