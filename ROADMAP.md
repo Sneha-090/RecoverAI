@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  374 passing local tests including matched policy evaluation, isolated demo reproducibility, dashboard evidence checks and existing recovery safeguards.
+  477 passing local tests including grouped model selection, matched policy evaluation, isolated demo reproducibility, operator controls and recovery safeguards.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -49,8 +49,8 @@ credentials are not embedded in its source. Signed webhooks remain separate.
 Unauthorized access and invalid inputs are covered by API tests. Dashboard tests
 exercise hidden content, rejected login, successful login/logout, session expiry,
 and credential rotation. A hosted Razorpay Test Mode checkout completed the
-recovery flow; the protected local checkout and dashboard login still need their
-own configured browser smoke test. This single-operator implementation
+recovery flow, and the owner completed dashboard login. The upgraded retry and
+alternate-method hosted flows still need a fresh configured manual acceptance test. This single-operator implementation
 still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
@@ -100,11 +100,12 @@ webhooks are shown read-only and are not forcibly replayed by settling a case.
 Add an operational ownership/lease protocol before offering crash recovery for
 processing claims; do not infer that an old timestamp means a process is dead.
 Successful recovery stops local follow-up work, but does not automatically
-cancel previously issued provider links/orders. Add supported provider cleanup
-and reconciliation before promising protection from multiple payments.
+cancel previously issued provider links/orders. Reviewed Test Mode cleanup now
+verifies and cancels unpaid links belonging to closed cases; paid/partial links
+and orders are excluded. This is not a guarantee against multiple payments.
 Do not blindly expire claims or promise exactly-once external charges.
 
-### 3. Review deadlines and approval policy (implemented); polling remains
+### 3. Review deadlines, approvals and pending-outcome polling (implemented)
 
 Implemented: a bounded local deadline worker expires overdue reviews without
 contacting the provider. Review status, failed-case closure, audit and review
@@ -124,9 +125,12 @@ Provider order/link requests now use the same exact Decimal-to-paise conversion
 as stored execution expectations. Rs.19.90 becomes 1,990 paise; invalid or
 fractional-paise amounts are rejected before a provider request.
 
-Remaining: scheduled pending-outcome checks, reviewed crash recovery, provider
-resource cleanup, and explicit fraud-stop/customer-opt-out rules. The worker
-must be supervised/restarted for continuous operation.
+Implemented: bounded pending-outcome polling uses the same case claims and
+provider verification, and reviewed cleanup handles eligible old unpaid links.
+Partial/inconsistent payments block further full-amount collection for
+reconciliation. Provider connect/read timeouts are configured.
+Remaining: reviewed crash recovery, explicit fraud-stop/customer-opt-out rules
+and supervised worker restarts for continuous operation.
 
 ## Make the ML and business story defensible
 
@@ -153,14 +157,21 @@ making live performance claims.
 
 ### 5. Probability quality and model lifecycle
 
-Current synthetic ROC-AUC is 0.761, compared with 0.500 for the constant-prior
-baseline. Recall at the fixed 0.5 classification threshold is only 23.8%.
-Calibration diagnostics exist, but the model has not been recalibrated.
+Current synthetic accuracy is 76.2%, ROC-AUC 0.759 versus 0.500 for the
+constant-prior baseline, and recall at classification threshold 0.5 is 22.9%.
+These are classification diagnostics, not the policy recovery rate.
 
-Use a separate grouped validation partition for threshold/calibration choices,
-reserve the test partition for final evaluation, measure performance by cause
-and amount, and record model versions with each decision. Detect unfamiliar
-inputs and drift; define a conservative fallback when predictions are unavailable.
+Implemented: four predefined candidates are compared on inner grouped validation;
+the selected regularized logistic model is refitted on outer training data.
+Reports include per-action/per-cause metrics, calibration-bin sample counts and
+training ranges. Unsupported causes and out-of-range numeric inputs require
+manual assessment. The former probability-confidence band is replaced by an
+explicit 2% near-tie net-value business review guard. Verified customer history
+and exact non-identifying feature snapshots are recorded when available.
+
+Remaining: real merchant calibration/validation, monitored drift and a complete
+model-version lifecycle for historical decisions. Existing synthetic test sets
+have already been inspected and cannot serve as a fresh blind merchant audit.
 
 ## Improve usability and reproducibility
 
@@ -177,21 +188,47 @@ inputs and drift; define a conservative fallback when predictions are unavailabl
 
 ### 7. Operator dashboard
 
-- Show a case timeline with the exact action, provider result, and reason.
-- Add date/status/cause filters, search, pagination, and useful empty states.
-- Make pending, interrupted, expired, and recovered cases easy to distinguish.
+- Implemented: readable event timelines, recorded action/reason/provider references,
+  literal payment-ID search, status filtering, bounded results and empty states.
+- Implemented: cause-filtered action distributions distinguish first decisions,
+  executed actions and human approvals, with explicit source/sample counts.
+- Additional date filters and pagination remain optional usability work.
 - Implemented: authenticated review, reviewed reconciliation with operator
   audit, and a matched Policy Benchmark view with uncertainty/deferral limits.
-- Add clearly labeled synthetic/live metrics, cost-adjusted reports, and export.
+- Implemented: source-separated Test Mode/synthetic totals, matched cost-adjusted
+  policy evidence and benchmark JSON download.
 
 ## Useful additions after the core gaps
 
 - Consent-aware email or WhatsApp recovery reminders with delivery tracking.
-- A customer recovery page that offers genuinely distinct payment methods;
-  currently `payment_link` and `alt_method` both create payment links.
+- Implemented: alternate-method links hide the failed method and verify captured
+  method; retries open a fresh explicit checkout. Merchant-enabled methods vary.
+- A deployed customer-facing portal remains separate from the private operator
+  Test Mode checkout.
 - Merchant-specific policy settings and, later, isolated merchant workspaces.
 - A short demo video, architecture diagram, and interview walkthrough showing
   duplicate delivery, human review, pending payment, and verified recovery.
+
+## Wrap-up recommendation for prototype v1
+
+Freeze feature development for the resume prototype. No production readiness
+claim is made. Latest code CI, saved model/report provenance, local API/dashboard
+health and worker readiness were checked; no active unresolved claim was present.
+
+Before final demo sign-off:
+
+- [ ] Complete a fresh hosted Test Mode acceptance run for unknown-reason manual
+  review, explicit retry checkout, and alternate-method payment/attribution.
+  API configuration acceptance and automated tests are already verified; this
+  fresh browser/payment flow is still pending.
+- [ ] Record a short demonstration of the case timeline, review decision and
+  verified result. Existing HTML replay is recorded offline evidence.
+- [ ] Prepare two honest resume bullets and the interview explanation of claims,
+  concurrency, reconciliation, model evaluation and remaining limitations.
+
+Further feature work is optional v2 work. Public/merchant deployment requires
+separately scoped hardening and approved outcome data; only Test Mode data is
+available now, as confirmed by the owner.
 
 ## Resume claims supported today
 
