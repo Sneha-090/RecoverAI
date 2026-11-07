@@ -188,3 +188,35 @@ def test_held_events_are_read_only_and_omit_raw_payload(review_ui):
     assert table['Event ID'].tolist() == ['evt_manual']
     assert 'PRIVATE_CONTACT' not in table.to_string()
     assert all('replay' not in button.label.lower() for button in app.button)
+
+
+
+def test_unknown_cause_needs_explicit_operator_choice_before_provider_creation(review_ui, monkeypatch):
+    from app.services.execution import execute_action
+    from app.models.models import MLPrediction
+    with review_ui() as db:
+        payment = Payment(payment_id='pay_unknown_ui', amount=499, status='failed',
+                          razorpay_state='failed', razorpay_error_reason='payment_failed')
+        db.add(payment); db.commit()
+        assert execute_action(db, payment)['chosen_action'] == 'manual_assessment'
+        review_id = db.query(Action).one().id
+        # Old predictions must not be presented as a new unsupported recommendation.
+        db.add(MLPrediction(payment_id=payment.payment_id, action_type='retry', probability=.99))
+        db.commit()
+    create = Mock(return_value={'id':'plink_operator_choice','short_url':'https://example.invalid/choice'})
+    monkeypatch.setattr('app.services.execution.create_payment_link', create)
+    app = login(AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'dashboard.py')).run(timeout=25))
+    choice = app.selectbox(key=f'choice_{review_id}')
+    assert choice.value is None
+    assert app.button(key=f'approve_{review_id}').disabled
+    assert not any('ML predictions:' in item.value for item in app.markdown)
+    assert any('No current ML probabilities' in item.value for item in app.info)
+    create.assert_not_called()
+    choice.select('payment_link').run(timeout=25)
+    assert not app.exception and not app.button(key=f'approve_{review_id}').disabled
+    app.button(key=f'approve_{review_id}').click().run(timeout=25)
+    assert not app.exception
+    assert create.call_count == 1
+    with review_ui() as db:
+        assert db.get(Action, review_id).review_status.value == 'actioned'
+        assert db.query(Action).filter_by(payment_id='pay_unknown_ui', decision_type='auto').one().action_type == 'payment_link'

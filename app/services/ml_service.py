@@ -28,6 +28,19 @@ model = joblib.load(MODEL_PATH)
 # Predict recovery probability for ONE action
 # -----------------------------
 
+class UnsupportedRecoveryCause(ValueError):
+    """The saved estimator has no action-specific training support for this cause."""
+
+
+def supported_recovery_causes():
+    """Read coverage from the fitted encoder, including every candidate action."""
+    encoder = model.named_steps["preprocessor"].named_transformers_["categorical"]
+    causes, actions, interactions = map(set, encoder.categories_)
+    return frozenset(cause for cause in causes
+                     if set(CANDIDATE_ACTIONS).issubset(actions)
+                     and all(f"{cause}__{action}" in interactions for action in CANDIDATE_ACTIONS))
+
+
 def predict_recovery(
     amount,
     cause,
@@ -36,6 +49,8 @@ def predict_recovery(
     past_rate,
     action_type,
 ):
+    if cause not in supported_recovery_causes():
+        raise UnsupportedRecoveryCause("No trained action coverage for this failure cause")
     data = pd.DataFrame([{
         "amount": amount,
         "cause": cause,

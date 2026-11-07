@@ -12,27 +12,21 @@ from sqlalchemy.orm import Session
 
 from app.models.models import Payment, Diagnosis
 
-# error_code -> cause. Based on Razorpay's documented error codes/reasons.
-# https://razorpay.com/docs/errors/
-ERROR_CODE_CAUSE_MAP = {
-    # Card issues
-    "GATEWAY_ERROR": "bank_declined",
-    "BAD_REQUEST_ERROR": "bank_declined",       # generic decline bucket (Day 1's real case)
-    "SERVER_ERROR": "network_error",
-
-    # error_reason-level refinement (used when error_code is generic
-    # but Razorpay gives a more specific reason string)
-}
-
+# Broad error codes do not identify a root cause. Use explicit provider reasons.
+# https://github.com/razorpay/markdown-docs/blob/master/payments/payment-gateway/rainy-day/errors/error-reasons.md
 ERROR_REASON_CAUSE_MAP = {
-    "payment_failed": "bank_declined",
+    "payment_declined": "bank_declined",
     "insufficient_funds": "insufficient_funds",
     "card_declined": "card_declined",
     "expired_card": "expired_card",
+    "card_expired": "expired_card",
     "invalid_card": "invalid_card",
+    "incorrect_card_details": "invalid_card",
     "authentication_failed": "authentication_failed",
     "processing_error": "network_error",
     "issuer_unavailable": "network_error",
+    "gateway_technical_error": "network_error",
+    "issuer_technical_error": "network_error",
     "payment_cancelled": "customer_cancelled",
 }
 
@@ -40,24 +34,13 @@ FALLBACK_CAUSE = "unclassified_error"
 
 
 def diagnose(payment: Payment) -> str:
+    """Preserve uncertainty when the provider has not supplied a specific reason.
+
+    In particular, payment_failed, BAD_REQUEST_ERROR and GATEWAY_ERROR do not
+    establish a bank decline. Unknown reasons require manual assessment.
     """
-    Pure function: given a Payment row, return a cause string.
-    Never returns None - falls back to FALLBACK_CAUSE if nothing matches,
-    per Day 2 DoD (100% of ingested payments get a cause, no nulls).
-    """
-    reason = (payment.razorpay_error_code or "").strip()
-    error_reason  = getattr(payment, "razorpay_error_reason", None)
-     # not on model yet - see note below
-
-    # Prefer the more specific error_reason if we have one, else fall back
-    # to error_code, else fall back to the safe default.
-    if error_reason and error_reason in ERROR_REASON_CAUSE_MAP:
-        return ERROR_REASON_CAUSE_MAP[error_reason]
-
-    if reason in ERROR_CODE_CAUSE_MAP:
-        return ERROR_CODE_CAUSE_MAP[reason]
-
-    return FALLBACK_CAUSE
+    reason = (getattr(payment, "razorpay_error_reason", None) or "").strip().lower()
+    return ERROR_REASON_CAUSE_MAP.get(reason, FALLBACK_CAUSE)
 
 
 def diagnose_and_store(db: Session, payment: Payment) -> Diagnosis:

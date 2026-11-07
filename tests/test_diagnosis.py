@@ -1,39 +1,27 @@
+import pytest
+
 from app.services.diagnosis import diagnose, FALLBACK_CAUSE
 from app.models.models import Payment
 
 
-def make_payment(error_code=None, error_reason=None):
-    return Payment(
-        payment_id="pay_test",
-        amount=499,
-        razorpay_error_code=error_code,
-        razorpay_error_reason=error_reason,
-    )
+@pytest.mark.parametrize('code', ['BAD_REQUEST_ERROR', 'GATEWAY_ERROR', 'SERVER_ERROR', None])
+@pytest.mark.parametrize('reason', ['payment_failed', 'unseen_provider_reason', None])
+def test_generic_codes_do_not_invent_a_bank_decline(code, reason):
+    assert diagnose(Payment(razorpay_error_code=code, razorpay_error_reason=reason)) == FALLBACK_CAUSE
 
 
-def test_known_error_reason_maps_correctly():
-    p = make_payment(error_code="BAD_REQUEST_ERROR", error_reason="insufficient_funds")
-    assert diagnose(p) == "insufficient_funds"
-
-
-def test_falls_back_to_error_code_when_reason_unknown():
-    p = make_payment(error_code="GATEWAY_ERROR", error_reason=None)
-    assert diagnose(p) == "bank_declined"
-
-
-def test_unmapped_code_uses_fallback_never_null():
-    p = make_payment(error_code="SOME_UNSEEN_CODE", error_reason=None)
-    assert diagnose(p) == FALLBACK_CAUSE
-    assert diagnose(p) is not None
-
-
-def test_real_day1_payment_case():
-    p = make_payment(error_code="BAD_REQUEST_ERROR", error_reason="payment_failed")
-    assert diagnose(p) == "bank_declined"
-
-
-
-
-
-
-
+@pytest.mark.parametrize('reason,cause', [
+    ('payment_declined', 'bank_declined'),
+    ('card_declined', 'card_declined'),
+    (' Insufficient_Funds ', 'insufficient_funds'),
+    ('card_expired', 'expired_card'),
+    ('expired_card', 'expired_card'),
+    ('incorrect_card_details', 'invalid_card'),
+    ('authentication_failed', 'authentication_failed'),
+    ('gateway_technical_error', 'network_error'),
+    ('issuer_technical_error', 'network_error'),
+    ('payment_cancelled', 'customer_cancelled'),
+])
+def test_specific_reason_takes_precedence_over_broad_error_code(reason, cause):
+    payment = Payment(razorpay_error_code='BAD_REQUEST_ERROR', razorpay_error_reason=reason)
+    assert diagnose(payment) == cause

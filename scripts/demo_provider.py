@@ -14,7 +14,7 @@ class DemoProvider:
         self.lose_next_response = False
         self.on_create = None
 
-    def failed_payment(self, payment_id, amount=499, reason='payment_failed'):
+    def failed_payment(self, payment_id, amount=499, reason='payment_declined'):
         entity = {'id': payment_id, 'amount': round(amount*100), 'currency':'INR',
                   'order_id':None, 'method':'card', 'status':'failed',
                   'error_code':'BAD_REQUEST_ERROR', 'error_reason':reason, 'created_at':int(time.time())}

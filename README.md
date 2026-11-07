@@ -234,3 +234,19 @@ Local passing tests and remote CI results are distinct; inspect the linked run.
 The completed prototype/evidence scope and remaining priorities are tracked in
 [ROADMAP.md](ROADMAP.md). Interview preparation should use this implementation
 and these measured limitations, rather than invented impact figures.
+
+
+### Failure diagnosis and model coverage
+
+Recovery uses explicit provider reasons; generic `payment_failed`, broad error
+codes, missing reasons and unrecognised reasons remain `unclassified_error`.
+The saved model's fitted action-interaction categories define supported causes.
+Unsupported causes enter **Human Review** as `manual_assessment`, with no model
+probabilities, preferred action or automatic provider resource. The operator must
+select an action explicitly; existing eligibility and duplicate-execution guards
+still apply. Recommendations do not count as executed attempts in ML features.
+The synthetic benchmark covers its four trained causes; it does not evaluate
+unknown-cause review outcomes or real merchant effectiveness. Offline automatic
+walkthrough scenarios use the explicit `payment_declined` fixture reason.
+Historical recorded diagnoses and outcomes are retained; this policy applies to
+new decisions and does not rewrite recovered cases.

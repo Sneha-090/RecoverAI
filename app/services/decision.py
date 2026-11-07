@@ -9,7 +9,8 @@ already been tried for this payment (Section 12's re-score loop).
 from datetime import datetime
 
 from app.config import settings
-from app.services.ml_service import predict_all_actions
+from app.services.ml_service import predict_all_actions, supported_recovery_causes
+from app.services.diagnosis import diagnose
 from app.services.policy import select_recovery_action
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
 from app.models.models import Action
@@ -120,6 +121,14 @@ def decide(db, payment) -> dict:
     eligible, reason = is_recovery_eligible(payment)
     if not eligible:
         return {"chosen_action": None, "decision_type": "skip", "reason": reason}
+
+    cause = diagnose(payment)
+    if cause not in supported_recovery_causes():
+        return {
+            "chosen_action": "manual_assessment", "decision_type": "human_review",
+            "reason": f"Failure cause '{cause}' is outside the model's trained action coverage; "
+                      "no ML recommendation or automatic recovery. Operator must assess and choose an action.",
+        }
 
     retry_eligible, retry_reason = is_retry_eligible(db, payment)
     predictions = predict_all_actions(db, payment)

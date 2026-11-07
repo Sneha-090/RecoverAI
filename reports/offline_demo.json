@@ -135,17 +135,20 @@
   ],
   "passed": 6,
   "network_policy": "External sockets and HTTP blocked; local loopback IPC allowed for Windows asyncio",
-  "demo_code_sha256": "abb24cb07faf4e715769609e2db2772b4ed4a4b8f800ac083fdc234e83d715ff",
+  "demo_code_sha256": "0741538fc1b288dedeaa23ba868f5a4b9145405dff044a0ee2eb801add851416",
   "source_fingerprints": {
     "app/api/webhooks.py": "14fe3c7cd401d2e8e07428ccf938d2eb151d64062df94ef406fdfde529106e29",
     "app/services/execution.py": "535383073efb459884c777e5fb1b99d0a675f989542772c270eb529312a75393",
     "app/services/policy.py": "fc5e6498c210543f6ca0614b00cc427201a12070050b9587ebbdfdd3a029c973",
+    "app/services/diagnosis.py": "fabd3659762773e07d1539c53aedc877f92bd8127908f9273859eeab65e916ef",
+    "app/services/decision.py": "5aea0110ce62f6ea59e556ddc9e049c10f83ffe000f09a6553081991cb471e01",
+    "app/services/ml_service.py": "8ed6b8128120bc7624b051be92a3ee4757d288d0c42fa8187f8b328267ee566e",
     "app/services/reservations.py": "b85ef699657f39d05102a7b6470d2fc463cc58f24a92ddbca504dafd4d84666b",
     "app/services/escalation.py": "daa0e1a3f876d348fea32ae903cd8531934822928811bb67885d60486024ba61",
     "app/services/reconciliation.py": "ef4cba58fadaf282b15c8f1fb955be1cb48a45507441256232cb07fd9364872e",
     "app/services/webhook_inbox.py": "8e6c923d441a1cbd301362d478b7b0a52a2924bcf42e04b3b82d7238cfb8f11c",
     "app/services/webhook_replay.py": "eb1dfe91469a64c92c6ba9536bbd1f8ae800e98f16d1a6178ad7984c46a98002",
-    "scripts/demo_provider.py": "b003896b197b1edeaf7f1dedac9c29f6e4be5409558103d6bb7d34dfbca935e8",
+    "scripts/demo_provider.py": "e6fa94a1171576fd893b141e8edbe26b2de31085155ee22d9d2abda680cc91e5",
     "scripts/render_demo_html.py": "3812264cb795c69bddb7cd602f54f2e45c92a1efa2e8d2282e1fc1f5bad69b35"
   },
   "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d"

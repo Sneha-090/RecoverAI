@@ -464,7 +464,7 @@ with tab_review:
                     .all()
                 )
 
-                if preds:
+                if preds and action_row.action_type != "manual_assessment":
 
                     pred_text = "  |  ".join(
                         f"{p.action_type}: "
@@ -477,8 +477,8 @@ with tab_review:
                     )
 
                 st.write(
-                    f"**ML's recommendation:** "
-                    f"{action_row.action_type}  |  "
+                    f"**Recommendation:** "
+                    f"{'Manual assessment required; no ML recommendation' if action_row.action_type == 'manual_assessment' else action_row.action_type}  |  "
                     f"**Why escalated:** "
                     f"{action_row.reason}"
                 )
@@ -521,9 +521,8 @@ with tab_review:
                             "retry",
                             "payment_link",
                             "alt_method",
-                        ].index(
-                            action_row.action_type
-                        ),
+                        ].index(action_row.action_type)
+                        if action_row.action_type in ["retry", "payment_link", "alt_method"] else None,
                         key=f"choice_{action_row.id}",
                     )
 
@@ -535,6 +534,7 @@ with tab_review:
                     if st.button(
                         "Approve & Execute",
                         key=f"approve_{action_row.id}",
+                        disabled=chosen is None,
                     ):
 
                         result = human_review_action(
@@ -804,7 +804,14 @@ with tab_explain:
                 f"{diagnosis.cause if diagnosis else 'not yet diagnosed'}"
             )
 
-            all_preds = (
+            latest_decision = db.query(Action).filter_by(payment_id=search_id).order_by(
+                Action.chosen_at.desc(), Action.id.desc(),
+            ).first()
+            assessment_required = latest_decision is not None and latest_decision.action_type == "manual_assessment"
+            if assessment_required:
+                st.info("Manual assessment required. No current ML probabilities or scores are available for this failure cause.")
+
+            all_preds = [] if assessment_required else (
                 db.query(MLPrediction)
                 .filter(
                     MLPrediction.payment_id
@@ -847,7 +854,7 @@ with tab_explain:
                     hide_index=True,
                 )
 
-            all_scores = (
+            all_scores = [] if assessment_required else (
                 db.query(RecoveryScore)
                 .filter(
                     RecoveryScore.payment_id

@@ -32,7 +32,7 @@ def test_module_a_persists_predictions_scores_and_reason():
         amount=88000.0,
         payment_method="card",
         razorpay_error_code="BAD_REQUEST_ERROR",
-        razorpay_error_reason="payment_failed",
+        razorpay_error_reason="payment_declined",
         razorpay_state="failed",
         status="failed",
         created_at=datetime.utcnow() - timedelta(days=1),
