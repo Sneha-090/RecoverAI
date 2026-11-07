@@ -45,6 +45,7 @@
       const response = await fetch(path, {credentials: "same-origin", ...options});
       if (!response.ok) {
         if (response.status === 401) throw new Error("Operator login required. Reload this page to sign in.");
+        if (response.status === 409) throw new Error("This recovery checkout is no longer active. Review the case in the dashboard.");
         if (response.status === 422) throw new Error("Check the order ID and amount (maximum two decimal places).");
         throw new Error("Request failed (" + response.status + "). Check the backend configuration.");
       }

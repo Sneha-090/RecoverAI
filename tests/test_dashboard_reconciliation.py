@@ -283,3 +283,29 @@ def test_live_case_search_and_status_filters_render_without_touching_provider(re
     app.selectbox(key='live_case_status').select('failed').run(timeout=25)
     assert not app.exception
     assert any('No Test Mode cases match' in item.value for item in app.info)
+
+
+
+def test_old_link_cancellation_requires_check_then_explicit_cancel(review_ui,monkeypatch):
+    with review_ui() as db:
+        payment=Payment(payment_id='pay_cleanup_ui',amount=499,status='recovered')
+        action=Action(payment_id=payment.payment_id,action_type='payment_link',decision_type='auto')
+        payload={'type':'payment_link','payment_link_id':'plink_cleanup'}
+        audit=AuditLog(payment_id=payment.payment_id,event_type='executed',payload_json=json.dumps(payload))
+        db.add_all([payment,action,audit]);db.flush();record_execution(db,payment,action,audit,payload);db.commit()
+    state={'id':'plink_cleanup','status':'created','amount':49900,'amount_paid':0,'currency':'INR'}
+    fetch=Mock(side_effect=lambda _:state.copy())
+    def close(_):state['status']='cancelled';return state.copy()
+    cancel=Mock(side_effect=close)
+    monkeypatch.setattr('app.services.checkout_maintenance.client.payment_link.fetch',fetch)
+    monkeypatch.setattr('app.services.checkout_maintenance.client.payment_link.cancel',cancel)
+    source="from app.ui.operator_login import require_dashboard_operator\noperator=require_dashboard_operator()\nfrom app.db.session import SessionLocal\nfrom app.ui.checkout_maintenance import render_checkout_maintenance\nwith SessionLocal() as db:render_checkout_maintenance(db,'pay_cleanup_ui',operator)\n"
+    app=login(AppTest.from_string(source).run(timeout=25))
+    fetch.assert_not_called();cancel.assert_not_called()
+    assert app.button(key='cleanup_cancel_pay_cleanup_ui').disabled
+    app.button(key='cleanup_check_pay_cleanup_ui').click().run(timeout=25)
+    assert not app.exception and not app.button(key='cleanup_cancel_pay_cleanup_ui').disabled
+    cancel.assert_not_called()
+    app.button(key='cleanup_cancel_pay_cleanup_ui').click().run(timeout=25)
+    assert not app.exception and cancel.call_count==1 and fetch.call_count==2
+    assert app.button(key='cleanup_cancel_pay_cleanup_ui').disabled

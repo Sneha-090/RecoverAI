@@ -343,3 +343,19 @@ review and reconciliation claims are never taken over. Provider errors remain
 blocked for review. Provider requests have 5-second connect / 20-second read
 socket timeouts; no SMS/email notifications are sent by this worker. The worker
 must stay running; operating-system supervision is not configured here.
+
+
+### Old recovery checkouts
+
+Decision Explanation provides separate **Check old link status** and **Cancel
+unpaid old link** controls for closed cases. Cleanup validates the recorded
+execution's ownership, provider ID, amount, currency and current unpaid state
+under the exclusive case claim; it works only with Test Mode credentials. Every
+cancel attempt re-fetches provider state, including after a lost response. Paid,
+partially-paid, active-case, order and mismatched resources cannot be cancelled
+through this control. No refund or replacement checkout is created. The private
+retry checkout rejects closed/inactive recovery orders; orders themselves are not
+cancelled at the provider. There is no claim that all external payment races can
+be prevented; a merchant pilot still needs duplicate-charge investigation.
+
+Provider cancellation reference: https://razorpay.com/docs/api/payments/payment-links/cancel-standard/

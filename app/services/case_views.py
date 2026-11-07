@@ -7,6 +7,8 @@ from app.models.models import AuditLog, Payment
 
 
 EVENTS = {
+    'old_link_cancelled':('Old checkout closed','An operator cancelled an unpaid link for a closed case.'),
+    'old_link_unconfirmed':('Checkout cleanup needs verification','The provider cancellation result was not confirmed.'),
     'decision_features':('Model inputs recorded','Observed history and executed-attempt features were saved.'),
     'executed':('Recovery checkout created','A recovery checkout was recorded.'),
     'human_approved_executed':('Operator approved checkout','The operator explicitly chose a recovery action.'),

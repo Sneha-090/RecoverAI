@@ -162,6 +162,16 @@ def checkout():
 def checkout_config(order_id: Annotated[str, Query(pattern=ORDER_ID)]):
     from app.services.razorpay_client import client
     order = client.order.fetch(order_id)
+    notes = order.get('notes') or {}
+    receipt = order.get('receipt') or ''
+    if (isinstance(notes,dict) and notes.get('recoverai_intent_id')) or receipt.startswith(('retry_','human_')):
+        from app.models.models import RecoveryExecution,RecoveryReservation,Payment
+        with SessionLocal() as db:
+            execution = db.query(RecoveryExecution).filter_by(provider_type='order',provider_id=order_id).first()
+            payment = db.get(Payment,execution.payment_id) if execution else None
+            claim = db.get(RecoveryReservation,execution.payment_id) if execution else None
+            if not payment or payment.status!='failed' or not claim or claim.state!='awaiting_outcome':
+                raise HTTPException(status_code=409,detail='This recovery checkout is no longer active; review the case in the dashboard')
     return {
         "key_id": settings.razorpay_key_id,
         "order_id": order["id"], "amount_paise": order["amount"], "currency": order["currency"],

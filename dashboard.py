@@ -29,6 +29,7 @@ from app.ui.operator_login import require_dashboard_operator
 from app.ui.reconciliation import render_reconciliation
 from app.ui.policy_benchmark import render_policy_benchmark
 from app.ui.action_distribution import render_action_distribution
+from app.ui.checkout_maintenance import render_checkout_maintenance
 from app.services.action_reporting import build_action_report
 from app.services.case_views import find_live_cases, case_timeline
 
@@ -1008,6 +1009,7 @@ with tab_explain:
                 f"**Final payment status:** "
                 f"{payment.status}"
             )
+            render_checkout_maintenance(db, search_id, operator_username)
             with st.expander('Case activity timeline', expanded=True):
                 timeline = case_timeline(db, search_id)
                 if timeline:

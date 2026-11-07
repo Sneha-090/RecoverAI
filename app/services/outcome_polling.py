@@ -3,6 +3,7 @@
 from datetime import datetime,timedelta
 
 from app.db.session import SessionLocal
+from app.config import settings
 from app.models.models import RecoveryReservation,Payment
 from app.services.execution import _run_reserved,_observe_outcome
 from app.services.reservations import RecoveryInProgress
@@ -11,6 +12,8 @@ from app.services.reservations import RecoveryInProgress
 def poll_pending_outcomes(limit=25,min_age_seconds=60,session_factory=None,now=None):
     if not 1<=limit<=100 or not 10<=min_age_seconds<=86400:
         raise ValueError('Use a batch limit of 1..100 and age of 10..86400 seconds')
+    if not settings.razorpay_key_id.startswith('rzp_test_'):
+        raise ValueError('The outcome follow-up worker supports Test Mode only')
     factory=session_factory or SessionLocal
     now=now or datetime.utcnow()
     with factory() as db:

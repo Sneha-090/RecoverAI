@@ -93,3 +93,11 @@ def test_provider_session_sets_bounded_timeouts_without_network(monkeypatch):
     monkeypatch.setattr('requests.Session.request',request)
     assert BoundedProviderSession().request('GET','https://example.invalid')=='fixture'
     assert request.call_args.kwargs['timeout']==(5,20)
+
+
+
+def test_followup_worker_refuses_live_credentials(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings,'razorpay_key_id','rzp_live_not_authorized')
+    with pytest.raises(ValueError,match='Test Mode only'):
+        poll_pending_outcomes()
