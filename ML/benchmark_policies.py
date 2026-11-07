@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 
-from ML.train_model import build_model, prepare_features, split_contexts
+from ML.train_model import fit_selected_model, prepare_features, split_contexts
 from app.services.policy import select_recovery_action
 from app.services.money import amount_paise
 from app.services.artifact_hashes import text_sha256
@@ -94,7 +94,7 @@ def choose(policy, context, predictions, config):
     return decision['chosen_action'], decision['decision_type']
 
 
-def evaluate_policy(test, probabilities, policy, config, seed):
+def evaluate_policy(test, probabilities, policy, config, seed, feature_support=None):
     contexts = test.groupby('customer_id', sort=True)[list(FEATURES)].first()
     labels = test.pivot(index='customer_id', columns='action_type', values='recovered')
     scores = test[['customer_id', 'action_type']].copy()
@@ -102,7 +102,12 @@ def evaluate_policy(test, probabilities, policy, config, seed):
     scores = scores.pivot(index='customer_id', columns='action_type', values='probability')
     rows = []
     for context_id, context in contexts.iterrows():
-        action, decision = choose(policy, context, scores.loc[context_id, list(ACTIONS)].to_dict(), config)
+        unsupported = feature_support is not None and any(
+            not bounds['min'] <= context[name] <= bounds['max'] for name,bounds in feature_support.items())
+        if policy.startswith('ml_') and unsupported:
+            action, decision = None, 'human_review'
+        else:
+            action, decision = choose(policy, context, scores.loc[context_id, list(ACTIONS)].to_dict(), config)
         executed = decision == 'auto' and action is not None
         success = bool(labels.loc[context_id, action]) if executed else False
         cost = amount_paise(config.costs[action]) if executed else 0
@@ -153,19 +158,19 @@ def run_benchmark(dataset, seeds=(11, 29, 42, 73, 101), bootstrap_repetitions=20
     primary_seed = 42 if 42 in seeds else seeds[0]
     for seed in seeds:
         train, test = split_contexts(frame, seed)
-        model = build_model(seed).fit(prepare_features(train), train['recovered'])
+        model, selection = fit_selected_model(train, seed)
         probabilities = model.predict_proba(prepare_features(test))[:, 1]
         buffer = BytesIO(); joblib.dump(model, buffer)
         metrics = {}
         for policy in POLICIES:
-            metrics[policy], rows = evaluate_policy(test, probabilities, policy, config, seed)
+            metrics[policy], rows = evaluate_policy(test, probabilities, policy, config, seed, model.supported_ranges_)
             all_rows.extend(rows)
             if seed == primary_seed:
                 primary_rows[policy] = rows
         splits.append({'seed': int(seed), 'train_contexts': train.customer_id.nunique(),
             'test_contexts': test.customer_id.nunique(),
             'overlapping_contexts': len(set(train.customer_id) & set(test.customer_id)),
-            'model_sha256': hashlib.sha256(buffer.getvalue()).hexdigest(), 'policies': metrics})
+            'model_sha256': hashlib.sha256(buffer.getvalue()).hexdigest(), 'model_selection':selection, 'feature_support':model.supported_ranges_, 'policies': metrics})
     report = {'schema_version': 1, 'scope': 'synthetic single-intervention policy benchmark; not merchant uplift',
         'dataset_sha256': text_sha256(dataset),
         'benchmark_code_sha256': text_sha256(__file__),
@@ -192,11 +197,12 @@ def run_benchmark(dataset, seeds=(11, 29, 42, 73, 101), bootstrap_repetitions=20
             'Deferred human reviews contribute zero immediate recovery and no action cost; reviewer labor or later decisions are not simulated.',
         ],
         'limitations': [
+            'ML cases outside each fitted training range are deferred; rules have no fitted-model coverage constraint.',
             'Synthetic potential outcomes cannot establish real intervention effectiveness or merchant revenue uplift.',
             'No sequential retry uplift is estimated: outcomes were generated at the original context, not after new attempts.',
             'Repeated split test sets overlap across runs; their counts must not be pooled as independent customers.',
             'Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.',
-            'The model is refitted on each training partition only; the application model file and merchant database are untouched.',
+            'Each split selects candidates using inner validation groups within training, then refits on training only; the application model file and merchant database are untouched.',
         ]}
     return report, pd.DataFrame(all_rows)
 

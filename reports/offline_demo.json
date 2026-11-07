@@ -40,7 +40,6 @@
       "outcomes": 1,
       "reservation": null,
       "audit_events": [
-        "decision_features",
         "escalated",
         "webhook_processed",
         "human_approved_executed",
@@ -82,12 +81,10 @@
       "outcomes": 1,
       "reservation": null,
       "audit_events": [
-        "decision_features",
         "escalated",
         "webhook_processed",
         "human_approved_executed",
         "attempt_failed",
-        "decision_features",
         "escalated",
         "human_approved_executed",
         "recovered",
@@ -110,7 +107,6 @@
       "outcomes": 0,
       "reservation": null,
       "audit_events": [
-        "decision_features",
         "escalated",
         "webhook_processed",
         "human_review_expired"
@@ -142,14 +138,14 @@
   ],
   "passed": 6,
   "network_policy": "External sockets and HTTP blocked; local loopback IPC allowed for Windows asyncio",
-  "demo_code_sha256": "e6ce09edd1377edab6a5cb392985f0e8ed24a31c0062c9fab59bf19daf26567a",
+  "demo_code_sha256": "5b294df5153e2e01435a68f17196a58d857460138b6817e27b26176677e8ecbf",
   "source_fingerprints": {
     "app/api/webhooks.py": "14fe3c7cd401d2e8e07428ccf938d2eb151d64062df94ef406fdfde529106e29",
     "app/services/execution.py": "02b032156ad8549451919ea5be2f6679e6d2687a82b55cbd69ad232593992d77",
     "app/services/policy.py": "d541009e4b80266fcf2f3d48a2ea91798517205355beabc5d418a3d21c11a1d0",
     "app/services/diagnosis.py": "fabd3659762773e07d1539c53aedc877f92bd8127908f9273859eeab65e916ef",
-    "app/services/decision.py": "34cb008aa46c73f1da466d84d38866b912e81389b14c846753f4b47feaa727a1",
-    "app/services/ml_service.py": "57bb20de3aab1d18533e24731b2e94da0a307b8f9e667607b1dc5e9fc31c42e9",
+    "app/services/decision.py": "149da910b69c5fc6d26d3d73954aa6bbc9835a332dde257b274d0c46c94768d8",
+    "app/services/ml_service.py": "a99f5c4d5f07fd0963b6c8c10ba7eb8242d4bfee9697661c1b5de5dc672582f5",
     "app/services/reservations.py": "b85ef699657f39d05102a7b6470d2fc463cc58f24a92ddbca504dafd4d84666b",
     "app/services/escalation.py": "daa0e1a3f876d348fea32ae903cd8531934822928811bb67885d60486024ba61",
     "app/services/reconciliation.py": "b410011ea3e94cc02f4c26c95a51d3b35e7f344d3c0caa4244344c31e6302a2a",
@@ -158,5 +154,5 @@
     "scripts/demo_provider.py": "9058fa07b3e9799e61de7a3ddc6746a29e173c2412b489bbdabf692bdab3b1a6",
     "scripts/render_demo_html.py": "3812264cb795c69bddb7cd602f54f2e45c92a1efa2e8d2282e1fc1f5bad69b35"
   },
-  "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d"
+  "model_sha256": "69b707e2934c9e13dfde9e0d6bddf648552b54474e7068d40381f1b5149dd06b"
 }

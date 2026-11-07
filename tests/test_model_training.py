@@ -70,3 +70,18 @@ def test_unknown_failure_cause_still_has_finite_predictions(tmp_path):
 def test_missing_or_single_customer_group_is_rejected(bad_groups):
     with pytest.raises(ValueError, match="groups"):
         split_contexts(pd.DataFrame({"customer_id": bad_groups, "recovered": [0, 1]}))
+
+
+
+def test_inner_selection_and_feature_support_do_not_include_outer_test(tmp_path):
+    report = train_and_evaluate(DATASET,tmp_path/'model.joblib',tmp_path/'report.json')
+    selection=report['model_selection']
+    assert selection['outer_test_used_for_selection'] is False
+    assert selection['overlapping_contexts']==0
+    assert selection['fit_contexts']+selection['validation_contexts']==report['split']['train_contexts']
+    best=min(selection['candidates'],key=lambda row:(row['log_loss'],row['brier_score'],row['name']))
+    assert selection['selected_candidate']==best['name']
+    frame=pd.read_csv(DATASET);train,_=split_contexts(frame)
+    assert report['feature_support']['amount']=={'min':float(train.amount.min()),'max':float(train.amount.max())}
+    assert sum(row['action_rows'] for row in report['calibration_bins'])==report['split']['test_rows']
+    assert set(report['per_action'])=={'retry','payment_link','alt_method'}

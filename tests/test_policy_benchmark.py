@@ -135,3 +135,13 @@ def test_cli_runs_without_credentials_and_does_not_create_merchant_database(cont
     assert result.returncode == 0, result.stderr
     assert (tmp_path/'output/POLICY_BENCHMARK.md').exists()
     assert not (tmp_path/'recoverai.db').exists()
+
+
+
+def test_numeric_training_coverage_defers_ml_without_restricting_rules(contexts):
+    table=contexts.iloc[:3].copy()
+    support={'amount':{'min':100,'max':200}}
+    metrics,rows=evaluate_policy(table,np.array([.9,.2,.1]),'ml_guarded',BenchmarkConfig(),42,support)
+    assert metrics['reviewed_later_not_simulated']==1 and not rows[0]['executed']
+    metrics,_=evaluate_policy(table,np.array([.9,.2,.1]),'cause_rules',BenchmarkConfig(),42,support)
+    assert metrics['interventions']==1

@@ -303,3 +303,21 @@ customers' cases are excluded. Duplicate outcomes never duplicate cases. Missing
 history uses an explicit 50% neutral assumption. New decision explanations record
 the exact numeric/history feature snapshot; legacy customer counters are not
 silently treated as observed outcomes. No real customer history is fabricated.
+
+
+### Training selection and input coverage
+
+The training command compares four predeclared candidates (three regularized
+logistic models and a random forest) on an inner grouped validation split,
+selects by validation log loss/Brier score, then refits on the outer training
+partition. The outer test groups do not select the winner. Each policy benchmark
+split repeats this same procedure. Reports include candidate scores, per-action
+and per-cause evaluation, calibration-bin sample counts and numeric training
+ranges. Values outside the saved model's training ranges require manual
+assessment, without fabricated extrapolation probabilities.
+
+This improves the evaluation procedure, not a claim of production effectiveness.
+The existing synthetic test set has been inspected in earlier project audits;
+a new blind merchant validation set is still required. Missing failure categories
+remain unsupported until justified training outcomes exist; no real data is
+invented to fill them.

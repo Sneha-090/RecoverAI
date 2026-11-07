@@ -1,6 +1,6 @@
 {
   "data_scope": "synthetic_only; no production accuracy or revenue-uplift claim",
-  "evaluated_at_utc": "2026-11-03T16:43:05.520449+00:00",
+  "evaluated_at_utc": "2026-11-07T16:16:22.703316+00:00",
   "dataset_sha256": "8278739e55f0787ca47a024bebf7c7e33c5808d4311c72c59e2f7b83ecb49e2b",
   "sklearn_version": "1.9.0",
   "split": {
@@ -18,22 +18,22 @@
   "classification_threshold": 0.5,
   "threshold_policy": "Fixed in advance; test set is not used for threshold selection",
   "model": {
-    "accuracy": 0.7608333333333334,
-    "precision": 0.6147540983606558,
-    "recall": 0.23809523809523808,
-    "f1": 0.34324942791762014,
-    "roc_auc": 0.7605990494126087,
-    "average_precision": 0.5156875988773879,
-    "brier_score": 0.16217954697728035,
-    "log_loss": 0.491474639883097,
+    "accuracy": 0.7616666666666667,
+    "precision": 0.6260869565217392,
+    "recall": 0.22857142857142856,
+    "f1": 0.33488372093023255,
+    "roc_auc": 0.7591247421755897,
+    "average_precision": 0.5146029744472516,
+    "brier_score": 0.1625303225490075,
+    "log_loss": 0.4925050837397752,
     "confusion_matrix": [
       [
-        838,
-        47
+        842,
+        43
       ],
       [
-        240,
-        75
+        243,
+        72
       ]
     ]
   },
@@ -57,49 +57,253 @@
       ]
     ]
   },
+  "model_selection": {
+    "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+    "seed": 1042,
+    "fit_contexts": 1280,
+    "validation_contexts": 320,
+    "overlapping_contexts": 0,
+    "selected_candidate": "logistic_c01",
+    "candidates": [
+      {
+        "name": "logistic_c01",
+        "log_loss": 0.5134153313348843,
+        "brier_score": 0.16877064222093613
+      },
+      {
+        "name": "logistic_c1",
+        "log_loss": 0.5135269340786084,
+        "brier_score": 0.16861975129011583
+      },
+      {
+        "name": "logistic_c10",
+        "log_loss": 0.5135867909305033,
+        "brier_score": 0.16861107267647749
+      },
+      {
+        "name": "random_forest",
+        "log_loss": 0.5149089785824449,
+        "brier_score": 0.16909726712943615
+      }
+    ],
+    "outer_test_used_for_selection": false
+  },
+  "feature_support": {
+    "amount": {
+      "min": 100.0,
+      "max": 10000.0
+    },
+    "attempts": {
+      "min": 0.0,
+      "max": 3.0
+    },
+    "days_since_failure": {
+      "min": 0.0,
+      "max": 14.0
+    },
+    "past_rate": {
+      "min": 0.0,
+      "max": 1.0
+    }
+  },
+  "per_action": {
+    "alt_method": {
+      "accuracy": 0.765,
+      "precision": 0.6666666666666666,
+      "recall": 0.12,
+      "f1": 0.2033898305084746,
+      "roc_auc": 0.7507,
+      "average_precision": 0.49433607457907147,
+      "brier_score": 0.15989586961183216,
+      "log_loss": 0.4880968021328208,
+      "confusion_matrix": [
+        [
+          294,
+          6
+        ],
+        [
+          88,
+          12
+        ]
+      ]
+    },
+    "payment_link": {
+      "accuracy": 0.77,
+      "precision": 0.7,
+      "recall": 0.20192307692307693,
+      "f1": 0.31343283582089554,
+      "roc_auc": 0.7636434511434511,
+      "average_precision": 0.5555097378048576,
+      "brier_score": 0.15959499550682751,
+      "log_loss": 0.4867580539956229,
+      "confusion_matrix": [
+        [
+          287,
+          9
+        ],
+        [
+          83,
+          21
+        ]
+      ]
+    },
+    "retry": {
+      "accuracy": 0.75,
+      "precision": 0.582089552238806,
+      "recall": 0.35135135135135137,
+      "f1": 0.43820224719101125,
+      "roc_auc": 0.7626796346519531,
+      "average_precision": 0.530236556582889,
+      "brier_score": 0.16810010252836285,
+      "log_loss": 0.5026603950908819,
+      "confusion_matrix": [
+        [
+          261,
+          28
+        ],
+        [
+          72,
+          39
+        ]
+      ]
+    }
+  },
+  "per_cause": {
+    "bank_declined": {
+      "accuracy": 0.842948717948718,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "roc_auc": 0.7448591603941959,
+      "average_precision": 0.3474760242383751,
+      "brier_score": 0.11861141009568933,
+      "log_loss": 0.38552782417777287,
+      "confusion_matrix": [
+        [
+          263,
+          0
+        ],
+        [
+          49,
+          0
+        ]
+      ]
+    },
+    "card_declined": {
+      "accuracy": 0.7092198581560284,
+      "precision": 0.5555555555555556,
+      "recall": 0.11904761904761904,
+      "f1": 0.19607843137254902,
+      "roc_auc": 0.7801827801827802,
+      "average_precision": 0.5609255195819532,
+      "brier_score": 0.17470046979963122,
+      "log_loss": 0.5166646909859508,
+      "confusion_matrix": [
+        [
+          95,
+          4
+        ],
+        [
+          37,
+          5
+        ]
+      ]
+    },
+    "insufficient_funds": {
+      "accuracy": 0.7493540051679587,
+      "precision": 0.5,
+      "recall": 0.041237113402061855,
+      "f1": 0.0761904761904762,
+      "roc_auc": 0.728012797724849,
+      "average_precision": 0.4439682089220953,
+      "brier_score": 0.16763716057954534,
+      "log_loss": 0.5044869393937089,
+      "confusion_matrix": [
+        [
+          286,
+          4
+        ],
+        [
+          93,
+          4
+        ]
+      ]
+    },
+    "network_error": {
+      "accuracy": 0.725,
+      "precision": 0.6428571428571429,
+      "recall": 0.49606299212598426,
+      "f1": 0.56,
+      "roc_auc": 0.750397080193302,
+      "average_precision": 0.5999093884878158,
+      "brier_score": 0.1903368881192275,
+      "log_loss": 0.5628757010274464,
+      "confusion_matrix": [
+        [
+          198,
+          35
+        ],
+        [
+          64,
+          63
+        ]
+      ]
+    }
+  },
   "calibration_bins": [
     {
-      "mean_predicted_probability": 0.06752115490576852,
-      "observed_recovery_fraction": 0.05429864253393665
+      "mean_predicted_probability": 0.06786056379846157,
+      "observed_recovery_fraction": 0.05102040816326531,
+      "action_rows": 196
     },
     {
-      "mean_predicted_probability": 0.15138188041371925,
-      "observed_recovery_fraction": 0.13043478260869565
+      "mean_predicted_probability": 0.15064079739145572,
+      "observed_recovery_fraction": 0.12058823529411765,
+      "action_rows": 340
     },
     {
-      "mean_predicted_probability": 0.24735398874105546,
-      "observed_recovery_fraction": 0.2804878048780488
+      "mean_predicted_probability": 0.2471548403856473,
+      "observed_recovery_fraction": 0.2845849802371542,
+      "action_rows": 253
     },
     {
-      "mean_predicted_probability": 0.344233215138681,
-      "observed_recovery_fraction": 0.36257309941520466
+      "mean_predicted_probability": 0.34495443746172777,
+      "observed_recovery_fraction": 0.37640449438202245,
+      "action_rows": 178
     },
     {
-      "mean_predicted_probability": 0.4474838376462931,
-      "observed_recovery_fraction": 0.4661016949152542
+      "mean_predicted_probability": 0.446714133245081,
+      "observed_recovery_fraction": 0.4491525423728814,
+      "action_rows": 118
     },
     {
-      "mean_predicted_probability": 0.5492225023391929,
-      "observed_recovery_fraction": 0.5789473684210527
+      "mean_predicted_probability": 0.5510405579807778,
+      "observed_recovery_fraction": 0.6101694915254238,
+      "action_rows": 59
     },
     {
-      "mean_predicted_probability": 0.6458741212101602,
-      "observed_recovery_fraction": 0.6382978723404256
+      "mean_predicted_probability": 0.6447551823887712,
+      "observed_recovery_fraction": 0.625,
+      "action_rows": 40
     },
     {
-      "mean_predicted_probability": 0.7529588949368144,
-      "observed_recovery_fraction": 0.6363636363636364
+      "mean_predicted_probability": 0.7602425695349242,
+      "observed_recovery_fraction": 0.6923076923076923,
+      "action_rows": 13
     },
     {
-      "mean_predicted_probability": 0.813943425635976,
-      "observed_recovery_fraction": 0.7142857142857143
+      "mean_predicted_probability": 0.8083386704317346,
+      "observed_recovery_fraction": 0.6666666666666666,
+      "action_rows": 3
     }
   ],
   "limitations": [
     "Synthetic outcomes do not validate real merchant performance.",
+    "This existing synthetic test set has prior project evaluations; it is not a fresh blind merchant audit.",
+    "Candidate selection uses one inner grouped split; selection stability and real data validation remain necessary.",
     "Calibration bins are diagnostic; the model has not been recalibrated.",
     "The saved estimator is fitted on the training partition only.",
     "Existing dashboard revenue simulations are not this held-out ML evaluation."
   ],
-  "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d"
+  "model_sha256": "69b707e2934c9e13dfde9e0d6bddf648552b54474e7068d40381f1b5149dd06b"
 }

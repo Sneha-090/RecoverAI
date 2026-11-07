@@ -10,7 +10,7 @@ from datetime import datetime
 import json
 
 from app.config import settings
-from app.services.ml_service import predict_all_actions, supported_recovery_causes
+from app.services.ml_service import predict_all_actions, supported_recovery_causes, UnsupportedRecoveryCause
 from app.services.diagnosis import diagnose
 from app.services.policy import select_recovery_action
 from app.services.eligibility import is_recovery_eligible, is_retry_eligible
@@ -141,7 +141,11 @@ def decide(db, payment) -> dict:
         }
 
     retry_eligible, retry_reason = is_retry_eligible(db, payment)
-    predictions = predict_all_actions(db, payment)
+    try:
+        predictions = predict_all_actions(db, payment)
+    except UnsupportedRecoveryCause as error:
+        return {'chosen_action':'manual_assessment','decision_type':'human_review',
+                'reason':str(error)}
     tried = get_tried_actions(db, payment.payment_id)
     alt_eligible, alt_reason = is_alt_method_eligible(payment)
     blocked = {} if alt_eligible else {"alt_method": alt_reason}

@@ -145,7 +145,7 @@ def run_scenarios(database):
         response, _ = failure('pay_DemoApproval',60000)
         assert response.json()['decision_type'] == 'human_review'
         assert fake.creations == before
-        assert approve('pay_DemoApproval')
+        assert approve('pay_DemoApproval', 'payment_link')
         finish(fake.last_created,'evt_approval_captured')
         record('High-value recovery requires human approval','pay_DemoApproval',[
             'A high-value case enters review; no provider resource exists yet.',
@@ -184,7 +184,7 @@ def run_scenarios(database):
         fake.fail_attempt(old_reference)
         with SessionLocal() as db:
             observe_outcome(db,db.get(Payment,'pay_DemoLateCapture'))
-        approve('pay_DemoLateCapture')
+        approve('pay_DemoLateCapture', 'payment_link')
         current_reference = fake.last_created
         assert current_reference != old_reference
         finish(old_reference,'evt_late_old_capture')

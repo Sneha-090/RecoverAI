@@ -131,7 +131,7 @@ def predict(request: RecoveryRequest):
             action_type=request.action_type,
         )
     except UnsupportedRecoveryCause:
-        raise HTTPException(status_code=422, detail="This failure cause requires manual assessment; no trained prediction is available") from None
+        raise HTTPException(status_code=422, detail="This recovery context requires manual assessment; no supported trained prediction is available") from None
     return {
         "recovery_probability": probability,
         "recovery_percentage": round(probability * 100, 2),

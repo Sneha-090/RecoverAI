@@ -9,7 +9,7 @@ Primary split: seed 42; 1600 training and 400 held-out contexts; zero context ov
 | blanket_retry | 284 | 0 | 94 | 23.5% | 84771.94 | 1420.00 | 83351.94 |
 | cause_rules | 373 | 0 | 133 | 33.2% | 134744.90 | 3555.00 | 131189.90 |
 | ml_value_only | 370 | 0 | 129 | 32.2% | 134454.07 | 4000.00 | 130454.07 |
-| ml_guarded | 341 | 29 | 126 | 31.5% | 132713.23 | 3610.00 | 129103.23 |
+| ml_guarded | 336 | 34 | 125 | 31.2% | 132368.26 | 3550.00 | 128818.26 |
 
 ## Paired net difference against cause rules
 
@@ -17,7 +17,7 @@ Primary split: seed 42; 1600 training and 400 held-out contexts; zero context ov
 | --- | ---: | --- |
 | blanket_retry | -47837.96 | [-80771.60, -18731.05] |
 | ml_value_only | -735.83 | [-12971.92, 13456.14] |
-| ml_guarded | -2086.67 | [-14517.82, 12088.70] |
+| ml_guarded | -2371.64 | [-14777.60, 11635.37] |
 
 Intervals crossing zero do not provide clear evidence of an advantage on this synthetic sample.
 
@@ -29,8 +29,8 @@ Human-review cases are unresolved here: guarded results measure immediate automa
 | --- | ---: | ---: | ---: | ---: |
 | blanket_retry | 84245.58 | 22.7% | 283.4 | 0.0 |
 | cause_rules | 118627.95 | 30.8% | 375.0 | 0.0 |
-| ml_value_only | 118064.14 | 30.8% | 372.4 | 0.0 |
-| ml_guarded | 112717.97 | 28.6% | 310.0 | 62.4 |
+| ml_value_only | 119101.59 | 30.8% | 373.0 | 0.0 |
+| ml_guarded | 110478.87 | 27.9% | 299.0 | 74.0 |
 
 ## Assumptions
 
@@ -45,10 +45,11 @@ Human-review cases are unresolved here: guarded results measure immediate automa
 
 ## Limits
 
+- ML cases outside each fitted training range are deferred; rules have no fitted-model coverage constraint.
 - Synthetic potential outcomes cannot establish real intervention effectiveness or merchant revenue uplift.
 - No sequential retry uplift is estimated: outcomes were generated at the original context, not after new attempts.
 - Repeated split test sets overlap across runs; their counts must not be pooled as independent customers.
 - Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.
-- The model is refitted on each training partition only; the application model file and merchant database are untouched.
+- Each split selects candidates using inner validation groups within training, then refits on training only; the application model file and merchant database are untouched.
 
 Full per-split metrics and provenance: [JSON](policy_benchmark.json). Auditable case decisions: [CSV](policy_decisions.csv).

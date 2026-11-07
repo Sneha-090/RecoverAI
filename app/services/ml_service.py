@@ -1,4 +1,5 @@
 import joblib
+import math
 
 from pathlib import Path
 from datetime import datetime
@@ -33,6 +34,10 @@ class UnsupportedRecoveryCause(ValueError):
     """The saved estimator has no action-specific training support for this cause."""
 
 
+class UnsupportedRecoveryContext(UnsupportedRecoveryCause):
+    """Numerical inputs fall outside the estimator's recorded training support."""
+
+
 def supported_recovery_causes():
     """Read coverage from the fitted encoder, including every candidate action."""
     encoder = model.named_steps["preprocessor"].named_transformers_["categorical"]
@@ -52,6 +57,14 @@ def predict_recovery(
 ):
     if cause not in supported_recovery_causes():
         raise UnsupportedRecoveryCause("No trained action coverage for this failure cause")
+    support = getattr(model, 'supported_ranges_', None)
+    if not isinstance(support, dict):
+        raise UnsupportedRecoveryContext('Model input coverage is unavailable; manual assessment required')
+    values = {'amount':amount, 'attempts':attempts, 'days_since_failure':days_since_failure, 'past_rate':past_rate}
+    for name, value in values.items():
+        bounds = support.get(name)
+        if bounds is None or not math.isfinite(value) or not bounds['min'] <= value <= bounds['max']:
+            raise UnsupportedRecoveryContext(f"{name} is outside recorded training support; manual assessment required")
     data = pd.DataFrame([{
         "amount": amount,
         "cause": cause,

@@ -77,3 +77,18 @@ def test_coverage_comes_from_fitted_action_interactions(monkeypatch):
     fake = SimpleNamespace(named_steps={'preprocessor':SimpleNamespace(named_transformers_={'categorical':encoder})})
     monkeypatch.setattr('app.services.ml_service.model', fake)
     assert supported_recovery_causes() == frozenset({'complete'})
+
+
+
+@pytest.mark.parametrize('amount', [1,20000,88000])
+def test_outside_numeric_training_support_requires_assessment_without_provider(coverage_db,monkeypatch,amount):
+    payment=Payment(payment_id='pay_outside',amount=amount,status='failed',razorpay_state='failed',
+                    payment_method='card',razorpay_error_reason='insufficient_funds')
+    coverage_db.add(payment);coverage_db.commit()
+    forbidden=Mock(side_effect=AssertionError('Outside support must not create a resource'))
+    monkeypatch.setattr('app.services.execution.create_test_order',forbidden)
+    monkeypatch.setattr('app.services.execution.create_payment_link',forbidden)
+    result=execute_action(coverage_db,payment)
+    assert result['chosen_action']=='manual_assessment' and result['executed'] is False
+    assert coverage_db.query(MLPrediction).count()==0
+    forbidden.assert_not_called()

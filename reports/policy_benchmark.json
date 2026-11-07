@@ -2,9 +2,9 @@
   "schema_version": 1,
   "scope": "synthetic single-intervention policy benchmark; not merchant uplift",
   "dataset_sha256": "c591a373f3284ba01ac5a30b4a83f5cf58debe1e2d66f467e3956b371f0b99b9",
-  "benchmark_code_sha256": "3c0884d377bdce21e24f95e89c335295a15f9fbab1aa473e293a5324a0fb052a",
+  "benchmark_code_sha256": "528732097c24910abcd98d68e186a6a301bb6edfbd17b047cd5e171f87f4c624",
   "selector_code_sha256": "d541009e4b80266fcf2f3d48a2ea91798517205355beabc5d418a3d21c11a1d0",
-  "training_code_sha256": "230ee9fbcb3931db4f61e1d81538538b35e012445266ff7afffeba9aa9f69a2e",
+  "training_code_sha256": "73c201d3f8f050f9aa35481fb01a5fb54b2e4e455dbb2618e3ca073f4fd748e9",
   "text_hash_normalization": "UTF-8 with universal LF newlines",
   "sklearn_version": "1.9.0",
   "config": {
@@ -34,7 +34,56 @@
       "train_contexts": 1600,
       "test_contexts": 400,
       "overlapping_contexts": 0,
-      "model_sha256": "ed05176713178ba00dc3f7481913ad6f295aa49e13b1161055ff513beac614bb",
+      "model_sha256": "b089be15fe54526c39281b8947772e2e4900b70024e935411d6041fb30f15c83",
+      "model_selection": {
+        "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+        "seed": 1011,
+        "fit_contexts": 1280,
+        "validation_contexts": 320,
+        "overlapping_contexts": 0,
+        "selected_candidate": "random_forest",
+        "candidates": [
+          {
+            "name": "logistic_c01",
+            "log_loss": 0.5134324866671901,
+            "brier_score": 0.17035616107097395
+          },
+          {
+            "name": "logistic_c1",
+            "log_loss": 0.5130502156856864,
+            "brier_score": 0.17011171764925628
+          },
+          {
+            "name": "logistic_c10",
+            "log_loss": 0.513072337378242,
+            "brier_score": 0.1701036282684258
+          },
+          {
+            "name": "random_forest",
+            "log_loss": 0.5121643449326977,
+            "brier_score": 0.16973276696265766
+          }
+        ],
+        "outer_test_used_for_selection": false
+      },
+      "feature_support": {
+        "amount": {
+          "min": 100.0,
+          "max": 10000.0
+        },
+        "attempts": {
+          "min": 0.0,
+          "max": 3.0
+        },
+        "days_since_failure": {
+          "min": 0.0,
+          "max": 14.0
+        },
+        "past_rate": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
       "policies": {
         "blanket_retry": {
           "contexts": 400,
@@ -62,27 +111,27 @@
         },
         "ml_value_only": {
           "contexts": 400,
-          "interventions": 370,
+          "interventions": 372,
           "reviewed_later_not_simulated": 0,
-          "skipped": 30,
+          "skipped": 28,
           "recovered": 123,
-          "gross_recovered_rupees": 103989.48,
-          "action_cost_rupees": 4250.0,
-          "net_recovered_rupees": 99739.48,
+          "gross_recovered_rupees": 108640.73,
+          "action_cost_rupees": 4165.0,
+          "net_recovered_rupees": 104475.73,
           "recovery_rate": 0.3075,
-          "interventions_per_context": 0.925
+          "interventions_per_context": 0.93
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 339,
-          "reviewed_later_not_simulated": 31,
-          "skipped": 30,
-          "recovered": 117,
-          "gross_recovered_rupees": 102445.82,
-          "action_cost_rupees": 3865.0,
-          "net_recovered_rupees": 98580.82,
-          "recovery_rate": 0.2925,
-          "interventions_per_context": 0.8475
+          "interventions": 297,
+          "reviewed_later_not_simulated": 75,
+          "skipped": 28,
+          "recovered": 105,
+          "gross_recovered_rupees": 91185.01,
+          "action_cost_rupees": 3295.0,
+          "net_recovered_rupees": 87890.01,
+          "recovery_rate": 0.2625,
+          "interventions_per_context": 0.7425
         }
       }
     },
@@ -91,7 +140,56 @@
       "train_contexts": 1600,
       "test_contexts": 400,
       "overlapping_contexts": 0,
-      "model_sha256": "2dfcdc7db5a0ba8abe1815f32a3ef1f4ac840245ba16cf6c088fb4c2f372ca27",
+      "model_sha256": "8ea1c5d0ec9ecdf6d1de2a701b01472c5d748baa4915077128d92304afaa61fe",
+      "model_selection": {
+        "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+        "seed": 1029,
+        "fit_contexts": 1280,
+        "validation_contexts": 320,
+        "overlapping_contexts": 0,
+        "selected_candidate": "logistic_c01",
+        "candidates": [
+          {
+            "name": "logistic_c01",
+            "log_loss": 0.5024233369323526,
+            "brier_score": 0.1661055082958088
+          },
+          {
+            "name": "logistic_c1",
+            "log_loss": 0.5024890019793887,
+            "brier_score": 0.166048218662082
+          },
+          {
+            "name": "logistic_c10",
+            "log_loss": 0.502508468072416,
+            "brier_score": 0.16604581377593944
+          },
+          {
+            "name": "random_forest",
+            "log_loss": 0.5211431657577361,
+            "brier_score": 0.17291975650537417
+          }
+        ],
+        "outer_test_used_for_selection": false
+      },
+      "feature_support": {
+        "amount": {
+          "min": 100.0,
+          "max": 10000.0
+        },
+        "attempts": {
+          "min": 0.0,
+          "max": 3.0
+        },
+        "days_since_failure": {
+          "min": 0.0,
+          "max": 14.0
+        },
+        "past_rate": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
       "policies": {
         "blanket_retry": {
           "contexts": 400,
@@ -119,27 +217,27 @@
         },
         "ml_value_only": {
           "contexts": 400,
-          "interventions": 377,
+          "interventions": 378,
           "reviewed_later_not_simulated": 0,
-          "skipped": 23,
+          "skipped": 22,
           "recovered": 118,
-          "gross_recovered_rupees": 121009.82,
-          "action_cost_rupees": 3695.0,
-          "net_recovered_rupees": 117314.82,
+          "gross_recovered_rupees": 121485.83,
+          "action_cost_rupees": 3720.0,
+          "net_recovered_rupees": 117765.83,
           "recovery_rate": 0.295,
-          "interventions_per_context": 0.9425
+          "interventions_per_context": 0.945
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 281,
-          "reviewed_later_not_simulated": 96,
-          "skipped": 23,
-          "recovered": 106,
-          "gross_recovered_rupees": 112606.94,
-          "action_cost_rupees": 2735.0,
-          "net_recovered_rupees": 109871.94,
-          "recovery_rate": 0.265,
-          "interventions_per_context": 0.7025
+          "interventions": 273,
+          "reviewed_later_not_simulated": 105,
+          "skipped": 22,
+          "recovered": 105,
+          "gross_recovered_rupees": 112302.25,
+          "action_cost_rupees": 2650.0,
+          "net_recovered_rupees": 109652.25,
+          "recovery_rate": 0.2625,
+          "interventions_per_context": 0.6825
         }
       }
     },
@@ -148,7 +246,56 @@
       "train_contexts": 1600,
       "test_contexts": 400,
       "overlapping_contexts": 0,
-      "model_sha256": "6ca9b8a07408c1ba270e10837160f26ec0d779e980a7df39e2253b8b8feed35d",
+      "model_sha256": "69b707e2934c9e13dfde9e0d6bddf648552b54474e7068d40381f1b5149dd06b",
+      "model_selection": {
+        "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+        "seed": 1042,
+        "fit_contexts": 1280,
+        "validation_contexts": 320,
+        "overlapping_contexts": 0,
+        "selected_candidate": "logistic_c01",
+        "candidates": [
+          {
+            "name": "logistic_c01",
+            "log_loss": 0.5134153313348843,
+            "brier_score": 0.16877064222093613
+          },
+          {
+            "name": "logistic_c1",
+            "log_loss": 0.5135269340786084,
+            "brier_score": 0.16861975129011583
+          },
+          {
+            "name": "logistic_c10",
+            "log_loss": 0.5135867909305033,
+            "brier_score": 0.16861107267647749
+          },
+          {
+            "name": "random_forest",
+            "log_loss": 0.5149089785824449,
+            "brier_score": 0.16909726712943615
+          }
+        ],
+        "outer_test_used_for_selection": false
+      },
+      "feature_support": {
+        "amount": {
+          "min": 100.0,
+          "max": 10000.0
+        },
+        "attempts": {
+          "min": 0.0,
+          "max": 3.0
+        },
+        "days_since_failure": {
+          "min": 0.0,
+          "max": 14.0
+        },
+        "past_rate": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
       "policies": {
         "blanket_retry": {
           "contexts": 400,
@@ -188,15 +335,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 341,
-          "reviewed_later_not_simulated": 29,
+          "interventions": 336,
+          "reviewed_later_not_simulated": 34,
           "skipped": 30,
-          "recovered": 126,
-          "gross_recovered_rupees": 132713.23,
-          "action_cost_rupees": 3610.0,
-          "net_recovered_rupees": 129103.23,
-          "recovery_rate": 0.315,
-          "interventions_per_context": 0.8525
+          "recovered": 125,
+          "gross_recovered_rupees": 132368.26,
+          "action_cost_rupees": 3550.0,
+          "net_recovered_rupees": 128818.26,
+          "recovery_rate": 0.3125,
+          "interventions_per_context": 0.84
         }
       }
     },
@@ -205,7 +352,56 @@
       "train_contexts": 1600,
       "test_contexts": 400,
       "overlapping_contexts": 0,
-      "model_sha256": "f6b71c1580e06da4ac6536f925beb48fedcae9673bf09fa4ceebc0bb9ee7d6d4",
+      "model_sha256": "39af2f73af79ec4c079dafa8b27f3361e032bfe2c9c2e8b8f48c2793fc4c6294",
+      "model_selection": {
+        "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+        "seed": 1073,
+        "fit_contexts": 1280,
+        "validation_contexts": 320,
+        "overlapping_contexts": 0,
+        "selected_candidate": "logistic_c1",
+        "candidates": [
+          {
+            "name": "logistic_c01",
+            "log_loss": 0.5152798632876938,
+            "brier_score": 0.17164883098060577
+          },
+          {
+            "name": "logistic_c1",
+            "log_loss": 0.514849388459528,
+            "brier_score": 0.17146401871458936
+          },
+          {
+            "name": "logistic_c10",
+            "log_loss": 0.5150077565900895,
+            "brier_score": 0.17149885036656143
+          },
+          {
+            "name": "random_forest",
+            "log_loss": 0.5257150476163455,
+            "brier_score": 0.17505960729408418
+          }
+        ],
+        "outer_test_used_for_selection": false
+      },
+      "feature_support": {
+        "amount": {
+          "min": 100.0,
+          "max": 10000.0
+        },
+        "attempts": {
+          "min": 0.0,
+          "max": 3.0
+        },
+        "days_since_failure": {
+          "min": 0.0,
+          "max": 14.0
+        },
+        "past_rate": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
       "policies": {
         "blanket_retry": {
           "contexts": 400,
@@ -262,7 +458,56 @@
       "train_contexts": 1600,
       "test_contexts": 400,
       "overlapping_contexts": 0,
-      "model_sha256": "aa690d43048da4baa974763b1df66d7eb820ae132bd0cb7238e99f541e4a9cb1",
+      "model_sha256": "74edbc96bfa7dd330d6efd3f0b56a2966e49ba15c7b1fdc928d159e16356e382",
+      "model_selection": {
+        "method": "inner GroupShuffleSplit; validation log loss, then Brier, then stable name",
+        "seed": 1101,
+        "fit_contexts": 1280,
+        "validation_contexts": 320,
+        "overlapping_contexts": 0,
+        "selected_candidate": "logistic_c1",
+        "candidates": [
+          {
+            "name": "logistic_c01",
+            "log_loss": 0.48875267853472715,
+            "brier_score": 0.16173317846951468
+          },
+          {
+            "name": "logistic_c1",
+            "log_loss": 0.4885788423057998,
+            "brier_score": 0.16177568709753176
+          },
+          {
+            "name": "logistic_c10",
+            "log_loss": 0.48860604069628927,
+            "brier_score": 0.16180882549834108
+          },
+          {
+            "name": "random_forest",
+            "log_loss": 0.5008627799376991,
+            "brier_score": 0.16554313594977357
+          }
+        ],
+        "outer_test_used_for_selection": false
+      },
+      "feature_support": {
+        "amount": {
+          "min": 100.0,
+          "max": 10000.0
+        },
+        "attempts": {
+          "min": 0.0,
+          "max": 3.0
+        },
+        "days_since_failure": {
+          "min": 0.0,
+          "max": 14.0
+        },
+        "past_rate": {
+          "min": 0.0,
+          "max": 1.0
+        }
+      },
       "policies": {
         "blanket_retry": {
           "contexts": 400,
@@ -346,15 +591,15 @@
       ]
     },
     "ml_guarded": {
-      "net_delta_rupees": -2086.67,
+      "net_delta_rupees": -2371.6400000000003,
       "net_delta_95_percentile_interval": [
-        -14517.81875,
-        12088.697499999995
+        -14777.599999999999,
+        11635.374249999999
       ],
-      "recovery_rate_delta": -0.0175,
+      "recovery_rate_delta": -0.02,
       "rate_delta_95_percentile_interval": [
-        -0.045,
-        0.01
+        -0.0475,
+        0.0075
       ]
     }
   },
@@ -372,16 +617,16 @@
       "reviewed_later_not_simulated": 0.0
     },
     "ml_value_only": {
-      "net_recovered_rupees": 118064.13599999998,
+      "net_recovered_rupees": 119101.58799999999,
       "recovery_rate": 0.308,
-      "interventions": 372.4,
+      "interventions": 373.0,
       "reviewed_later_not_simulated": 0.0
     },
     "ml_guarded": {
-      "net_recovered_rupees": 112717.968,
-      "recovery_rate": 0.28550000000000003,
-      "interventions": 310.0,
-      "reviewed_later_not_simulated": 62.4
+      "net_recovered_rupees": 110478.874,
+      "recovery_rate": 0.2785,
+      "interventions": 299.0,
+      "reviewed_later_not_simulated": 74.0
     }
   },
   "assumptions": [
@@ -395,11 +640,12 @@
     "Deferred human reviews contribute zero immediate recovery and no action cost; reviewer labor or later decisions are not simulated."
   ],
   "limitations": [
+    "ML cases outside each fitted training range are deferred; rules have no fitted-model coverage constraint.",
     "Synthetic potential outcomes cannot establish real intervention effectiveness or merchant revenue uplift.",
     "No sequential retry uplift is estimated: outcomes were generated at the original context, not after new attempts.",
     "Repeated split test sets overlap across runs; their counts must not be pooled as independent customers.",
     "Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.",
-    "The model is refitted on each training partition only; the application model file and merchant database are untouched."
+    "Each split selects candidates using inner validation groups within training, then refits on training only; the application model file and merchant database are untouched."
   ],
-  "decisions_sha256": "44b42b415d9acff28db81ae79785168f8ed10217d2cf3529df11bfaa5a9d1ccd"
+  "decisions_sha256": "3ab918bb00cecb3c0889088dd96b465e0e0912ac0dd1582bffb96a26f932406e"
 }

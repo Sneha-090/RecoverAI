@@ -24,12 +24,14 @@ def make_session():
     return sessionmaker(bind=engine)()
 
 
-def test_module_a_persists_predictions_scores_and_reason():
+def test_module_a_persists_predictions_scores_and_reason(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "human_review_amount_threshold", 100)
     db = make_session()
 
     payment = Payment(
         payment_id="pay_module_a_test",
-        amount=88000.0,
+        amount=499.0,
         payment_method="card",
         razorpay_error_code="BAD_REQUEST_ERROR",
         razorpay_error_reason="payment_declined",
