@@ -154,10 +154,14 @@ def test_no_stuck_cases_has_clear_empty_state(review_ui):
     assert any('No recovery cases' in item.value for item in app.info)
 
 
-def test_main_dashboard_includes_authenticated_review_tab(review_ui):
+def test_main_dashboard_includes_authenticated_review_tab(review_ui, monkeypatch):
+    legacy = Mock(side_effect=AssertionError('Legacy model-derived baseline must not be used'))
+    monkeypatch.setattr('app.services.reporting.compute_naive_blanket_retry_baseline', legacy)
     app = login(AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'dashboard.py')).run(timeout=25))
     assert not app.exception
     assert 'Recovery Review' in [tab.label for tab in app.tabs]
+    assert 'Policy Benchmark' in [tab.label for tab in app.tabs]
+    legacy.assert_not_called()
 
 
 def test_changing_provider_reference_discards_preview(review_ui, monkeypatch):

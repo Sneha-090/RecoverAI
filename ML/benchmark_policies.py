@@ -19,6 +19,7 @@ import sklearn
 from ML.train_model import build_model, prepare_features, split_contexts
 from app.services.policy import select_recovery_action
 from app.services.money import amount_paise
+from app.services.artifact_hashes import text_sha256
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -168,9 +169,11 @@ def run_benchmark(dataset, seeds=(11, 29, 42, 73, 101), bootstrap_repetitions=20
             'overlapping_contexts': len(set(train.customer_id) & set(test.customer_id)),
             'model_sha256': hashlib.sha256(buffer.getvalue()).hexdigest(), 'policies': metrics})
     report = {'schema_version': 1, 'scope': 'synthetic single-intervention policy benchmark; not merchant uplift',
-        'dataset_sha256': hashlib.sha256(Path(dataset).read_bytes()).hexdigest(),
-        'benchmark_code_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        'selector_code_sha256': hashlib.sha256((ROOT/'app/services/policy.py').read_bytes()).hexdigest(),
+        'dataset_sha256': text_sha256(dataset),
+        'benchmark_code_sha256': text_sha256(__file__),
+        'selector_code_sha256': text_sha256(ROOT/'app/services/policy.py'),
+        'training_code_sha256': text_sha256(ROOT/'ML/train_model.py'),
+        'text_hash_normalization':'UTF-8 with universal LF newlines',
         'sklearn_version': sklearn.__version__, 'config': asdict(config),
         'primary_seed': int(primary_seed), 'seeds': list(seeds), 'splits': splits,
         'bootstrap': {'method': 'paired context percentile bootstrap on primary split',
@@ -201,7 +204,7 @@ def run_benchmark(dataset, seeds=(11, 29, 42, 73, 101), bootstrap_repetitions=20
 def write_report(report, decisions, output_dir):
     output = Path(output_dir); output.mkdir(parents=True, exist_ok=True)
     csv = output/'policy_decisions.csv'; decisions.to_csv(csv, index=False)
-    report['decisions_sha256'] = hashlib.sha256(csv.read_bytes()).hexdigest()
+    report['decisions_sha256'] = text_sha256(csv)
     (output/'policy_benchmark.json').write_text(json.dumps(report, indent=2, allow_nan=False)+'\n', encoding='utf-8')
     primary = next(split for split in report['splits'] if split['seed'] == report['primary_seed'])
     lines = ['# Synthetic policy benchmark', '', '**Synthetic evidence only. No merchant revenue or production uplift claim.**', '',

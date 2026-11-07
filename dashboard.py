@@ -26,9 +26,9 @@ from app.models.models import (
 from app.services.execution import human_review_action
 from app.ui.operator_login import require_dashboard_operator
 from app.ui.reconciliation import render_reconciliation
+from app.ui.policy_benchmark import render_policy_benchmark
 from app.services.reporting import (
     compute_impact_metrics,
-    compute_naive_blanket_retry_baseline,
 )
 
 
@@ -134,11 +134,11 @@ def get_recovery_order_info(payment_id: str):
 ) = st.tabs(
     [
         "Live Razorpay Cases",
-        "Batch Evaluation",
+        "Case Simulation",
         "Human Review",
         "Recovery Review",
         "Guardrails",
-        "Impact",
+        "Policy Benchmark",
         "Decision Explanation",
     ]
 )
@@ -297,8 +297,8 @@ with tab_live:
 with tab_batch:
 
     st.caption(
-        "75-payment synthetic simulation - "
-        "decision logic is real, outcomes are simulated."
+        "Optional synthetic case walkthrough. Outcomes are simulated; "
+        "use the Policy Benchmark tab for matched evaluation evidence."
     )
 
     batch_payments = (
@@ -699,50 +699,7 @@ with tab_guardrails:
 # =====================================================
 
 with tab_impact:
-
-    recoverai = compute_impact_metrics(db)
-
-    baseline = (
-        compute_naive_blanket_retry_baseline(db)
-    )
-
-    c1, c2 = st.columns(2)
-
-    c1.metric(
-        "Total Recovered (RecoverAI)",
-        f"Rs.{recoverai['total_recovered']:,.2f}",
-        delta=(
-            f"Rs."
-            f"{recoverai['total_recovered'] - baseline['total_recovered']:,.2f}"
-            " vs baseline"
-        ),
-    )
-
-    c2.metric(
-        "Recovery Rate",
-        f"{recoverai['recovery_rate'] * 100:.1f}%",
-        delta=(
-            f"{(recoverai['recovery_rate'] - baseline['recovery_rate']) * 100:.1f}"
-            " pts vs baseline"
-        ),
-    )
-
-    chart_df = pd.DataFrame(
-        {
-            "Approach": [
-                "Naive Blanket-Retry",
-                "RecoverAI",
-            ],
-            "Recovery Rate (%)": [
-                baseline["recovery_rate"] * 100,
-                recoverai["recovery_rate"] * 100,
-            ],
-        }
-    )
-
-    st.bar_chart(
-        chart_df.set_index("Approach")
-    )
+    render_policy_benchmark()
 
 
 # =====================================================

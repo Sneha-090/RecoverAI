@@ -37,16 +37,11 @@ def compute_impact_metrics(db, payment_id_prefix="sim_"):
 
 
 def compute_naive_blanket_retry_baseline(db, payment_id_prefix="sim_"):
-    """
-    Simulates blindly retrying EVERY failed payment once - no eligibility
-    check, no cause-aware action selection, no cost-scoring, retry is
-    always the action regardless of whether it's the best choice.
+    """Legacy illustration using the model's own retry probabilities.
 
-    Uses the REAL trained model's own retry-probability for each payment
-    (instead of one flat assumed rate) as the success probability for
-    that payment's coin-flip - this ties the baseline to each payment's
-    actual characteristics (cause, past_rate, etc.) rather than treating
-    every payment identically, which is a fairer/less noisy comparison.
+    This self-referential simulation is not a policy benchmark and must not
+    support merchant-uplift claims. Use ML.benchmark_policies and its fixed
+    held-out labels for matched comparisons. Kept for old scripts only.
     """
     random.seed(7)
 

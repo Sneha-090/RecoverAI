@@ -1,9 +1,11 @@
 {
   "schema_version": 1,
   "scope": "synthetic single-intervention policy benchmark; not merchant uplift",
-  "dataset_sha256": "8278739e55f0787ca47a024bebf7c7e33c5808d4311c72c59e2f7b83ecb49e2b",
-  "benchmark_code_sha256": "99ecd67bbe6b1aa527c6877d98b4e467074744aae83448d4c1ae78ab6e655771",
-  "selector_code_sha256": "dd2415c1e9e20acd4136d3bcfc368c4913d649fd017f8fa7be1e7c6caaf2ca5f",
+  "dataset_sha256": "c591a373f3284ba01ac5a30b4a83f5cf58debe1e2d66f467e3956b371f0b99b9",
+  "benchmark_code_sha256": "9548cf95d5cf58942e6b03388cd0304ffb1fc67d93642e73f68ceb773f2a878d",
+  "selector_code_sha256": "fc5e6498c210543f6ca0614b00cc427201a12070050b9587ebbdfdd3a029c973",
+  "training_code_sha256": "230ee9fbcb3931db4f61e1d81538538b35e012445266ff7afffeba9aa9f69a2e",
+  "text_hash_normalization": "UTF-8 with universal LF newlines",
   "sklearn_version": "1.9.0",
   "config": {
     "costs": {
@@ -398,5 +400,5 @@
     "Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.",
     "The model is refitted on each training partition only; the application model file and merchant database are untouched."
   ],
-  "decisions_sha256": "579f5d5bbf5873ad02ff3b70e0f98b3ee1a3f9175081ceba10694c9257346f54"
+  "decisions_sha256": "ecba27318f8be17ea6d441929b3234af55397412987207e30c27703d9fb443f0"
 }
