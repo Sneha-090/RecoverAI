@@ -268,3 +268,18 @@ def test_only_latest_active_human_approved_checkout_is_offered(review_ui):
     app.run(timeout=25)
     assert not app.exception
     assert not any('https://rzp.io/rzp/testCurrent' in item.value for item in app.markdown)
+
+
+
+def test_live_case_search_and_status_filters_render_without_touching_provider(review_ui):
+    with review_ui() as db:
+        db.add_all([Payment(payment_id='pay_searchOne',amount=100,status='failed'),
+                    Payment(payment_id='pay_searchTwo',amount=200,status='recovered')])
+        db.commit()
+    app=login(AppTest.from_file(str(Path(__file__).resolve().parents[1]/'dashboard.py')).run(timeout=25))
+    app.text_input(key='live_case_search').set_value('searchTwo').run(timeout=25)
+    tab=next(tab for tab in app.tabs if tab.label=='Live Razorpay Cases')
+    assert list(tab.dataframe[0].value['Payment ID'])==['pay_searchTwo']
+    app.selectbox(key='live_case_status').select('failed').run(timeout=25)
+    assert not app.exception
+    assert any('No Test Mode cases match' in item.value for item in app.info)

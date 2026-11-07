@@ -321,3 +321,12 @@ The existing synthetic test set has been inspected in earlier project audits;
 a new blind merchant validation set is still required. Missing failure categories
 remain unsupported until justified training outcomes exist; no real data is
 invented to fill them.
+
+
+### Operator case navigation
+
+Live cases support literal payment-ID search and case-status filtering, capped at
+200 newest results. Headline totals still describe the entire Test Mode source.
+Decision Explanation includes a bounded chronological activity timeline with
+readable event names and validated provider references. Raw webhook payloads,
+contact details and unstructured exception text are never rendered in that view.

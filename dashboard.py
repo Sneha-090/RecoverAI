@@ -30,6 +30,7 @@ from app.ui.reconciliation import render_reconciliation
 from app.ui.policy_benchmark import render_policy_benchmark
 from app.ui.action_distribution import render_action_distribution
 from app.services.action_reporting import build_action_report
+from app.services.case_views import find_live_cases, case_timeline
 
 
 # =====================================================
@@ -138,17 +139,19 @@ with tab_live:
         "Real Razorpay test-mode payments processed through RecoverAI."
     )
 
-    live_payments = (
-        db.query(Payment)
-        .filter(Payment.payment_id.like("pay_%"))
-        .order_by(Payment.created_at.desc())
-        .all()
-    )
+    search_column, status_column = st.columns([2,1])
+    with search_column:
+        case_search = st.text_input('Search payment ID', max_chars=128, key='live_case_search')
+    with status_column:
+        case_status = st.selectbox('Case status',
+            ['All statuses','failed','recovered','closed_unrecovered','authorized','captured'], key='live_case_status')
+    live_payments = find_live_cases(db,case_search,case_status)
+    st.caption('Showing up to 200 newest matching Test Mode cases. Headline totals cover all Test Mode cases.')
 
     if not live_payments:
 
         st.info(
-            "No real Razorpay payments processed yet."
+            "No Test Mode cases match the selected search and status."
         )
 
     else:
@@ -1005,6 +1008,15 @@ with tab_explain:
                 f"**Final payment status:** "
                 f"{payment.status}"
             )
+            with st.expander('Case activity timeline', expanded=True):
+                timeline = case_timeline(db, search_id)
+                if timeline:
+                    st.dataframe(pd.DataFrame(timeline), width='stretch', hide_index=True,
+                                 alt='Chronological recovery case events with safe provider references')
+                    st.caption('Up to 200 latest recorded events, shown in time order. Raw webhook payloads and contact details are omitted.')
+                else:
+                    st.info('No case activity has been recorded yet.')
+
 
 
 # =====================================================
