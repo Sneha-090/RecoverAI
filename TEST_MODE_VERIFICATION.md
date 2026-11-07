@@ -98,3 +98,32 @@ verified test case remained recovered. The deadline worker was started from
 
 The final combined local suite passed all 350 tests. No new provider resources
 were created by the maintenance or exact-money regression tests.
+
+
+## Matched benchmark and repeatable demo — 7 November 2026
+
+The combined local suite passed 374 tests. The new benchmark uses five fixed
+context-group splits, identical synthetic outcomes/costs and one intervention
+per context. The primary ML value-versus-rules net interval crosses zero;
+ML superiority is not established. Deferred reviews are not assumed recovered.
+Generated JSON/CSV/Markdown record the assumptions, decisions and fingerprints.
+
+The offline runner passed six scenarios and reproduced identical recorded
+results in two fresh processes, including the legacy live_demo alias. Tests
+verify a pre-existing merchant fixture DB and `.env` stay unchanged. Every run
+uses a new SQLite file and fake SDK provider; external networking is blocked
+with local loopback IPC allowed for Windows asyncio. These results are not a
+new provider-origin payment test. The actual D drive DB was not seeded with
+these demo cases.
+
+The dashboard's previous self-referential uplift comparison was replaced by
+recorded matched evidence with stale-artifact checks. Streamlit AppTest verifies
+its behavior, uncertainty text and legacy-baseline exclusion. The self-contained
+HTML replay is generated and unit-checked; an attempted visual browser preview
+could not start because the computer-control runtime was unavailable. No visual
+browser QA success is claimed.
+
+GitHub Actions run 42365122519 completed successfully for code/dashboard commit
+17ed1b9, including regression tests, classifier evaluation, matched benchmark
+and offline demo reproduction. Later documentation commits have their own
+head-specific CI result; local success is not substituted for that result.

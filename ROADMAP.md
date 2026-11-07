@@ -1,6 +1,6 @@
 # RecoverAI: verified state and improvement plan
 
-Reviewed 6 November 2026. This is a repository review, not a production readiness
+Reviewed 7 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
 synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
 credentials, initialized database tables, and a completed provider-origin
@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  350 passing tests including deadline maintenance, approval policy, exact money conversion, reconciliation and webhook replay.
+  374 passing local tests including matched policy evaluation, isolated demo reproducibility, dashboard evidence checks and existing recovery safeguards.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -130,20 +130,26 @@ must be supervised/restarted for continuous operation.
 
 ## Make the ML and business story defensible
 
-### 4. Independent policy benchmark
+### 4. Matched synthetic policy benchmark (implemented)
 
-Evidence: `scripts/run_batch_simulation.py` samples action-level rows and uses a
-fixed 25% stand-in for unobserved actions. `app/services/reporting.py` evaluates
-blanket retry using the model's own probabilities. These use different outcome
-assumptions and do not establish real business uplift. Live ingestion does not
-populate the customer history consumed by the model.
+The benchmark now uses unique grouped held-out contexts with a fixed potential
+outcome for every action. Blanket retry, cause rules, ML value ranking and the
+application's guarded ML selector share costs, hard guards and a one-action
+budget. It no longer samples baseline outcomes from the evaluated model.
+Five predefined split seeds and a paired primary-split bootstrap are reported;
+selectors cannot read labels, and overlapping test sets are not pooled.
 
-Benchmark unique held-out contexts under the same simulator and attempt budget.
-Compare blanket retry, a cause-based rules policy, and model-based selection.
-Report net recovered amount after costs, recovery rate, number of interventions,
-and uncertainty over multiple seeds. Keep live, synthetic, and historical
-screenshots visibly separate. Connect anonymized customer history and validate
-on real outcomes before making merchant performance claims.
+On seed 42, ML value ranking minus cause rules is Rs.-735.83, with a paired
+interval [Rs.-12,971.92, Rs.13,456.14]. A clear ML advantage is not established.
+Guarded-policy reviews remain unresolved; immediate automatic recovery cannot
+be called full post-review performance. Prior-retry/cooling-off assumptions
+and omitted reviewer costs are explicit. See `reports/POLICY_BENCHMARK.md`.
+
+The dashboard uses fingerprint-verified recorded evidence and rejects stale
+inputs/source. Legacy simulated uplift figures were removed from the main
+README/dashboard. The old self-referential reporting helper is legacy only.
+Real customer history and a merchant outcome pilot remain necessary before
+making live performance claims.
 
 ### 5. Probability quality and model lifecycle
 
@@ -161,9 +167,11 @@ inputs and drift; define a conservative fallback when predictions are unavailabl
 ### 6. Reliable setup and operations
 
 - Add tested dependency locks and database migrations for future schema changes.
-- Document a clean Windows setup, `.env` creation without exposing secrets,
-  test-mode checkout, and troubleshooting for OneDrive/low disk space.
-- Add a repeatable demo seed/reset procedure that cannot erase merchant data.
+- Implemented: a documented D drive Windows setup, private password reset,
+  and separate local operator/webhook listeners.
+- Implemented: six repeatable offline scenarios using a fake provider, fresh
+  DB, network guard and recorded HTML/JSON/Markdown replay; no merchant reset.
+  The former live_demo command now defaults to this safe offline runner.
 - Add health/readiness checks, structured logs with sensitive-data redaction,
   worker failure visibility, and a documented deployment configuration.
 
@@ -172,8 +180,8 @@ inputs and drift; define a conservative fallback when predictions are unavailabl
 - Show a case timeline with the exact action, provider result, and reason.
 - Add date/status/cause filters, search, pagination, and useful empty states.
 - Make pending, interrupted, expired, and recovered cases easy to distinguish.
-- Add authenticated review, rejection reasons, reviewer identity, and reviewed
-  reconciliation controls. Render guardrail status from real checks.
+- Implemented: authenticated review, reviewed reconciliation with operator
+  audit, and a matched Policy Benchmark view with uncertainty/deferral limits.
 - Add clearly labeled synthetic/live metrics, cost-adjusted reports, and export.
 
 ## Useful additions after the core gaps
@@ -194,5 +202,7 @@ its limitations. Do not describe synthetic revenue as merchant revenue, a test
 checkout as a production deployment, or probabilistic predictions as guaranteed
 recovery.
 
-Recommended next implementation: exact execution/outcome attribution and
-reconciliation, plus manual test-mode checkout verification after operator setup.
+Agreed prototype-evidence phase completed: matched benchmark, repeatable demo,
+architecture, current setup and supported claims. Next agreed phase is interview
+preparation using this implementation and its measured limitations. Production
+hardening and a real merchant pilot remain separately scoped work.
