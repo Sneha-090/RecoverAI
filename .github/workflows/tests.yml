@@ -32,6 +32,11 @@ jobs:
         run: >-
           python -m ML.benchmark_policies
           --output-dir "${{ runner.temp }}/policy-benchmark"
+      - name: Reproduce isolated offline recovery walkthrough
+        run: >-
+          python -m scripts.offline_demo
+          --output-dir "${{ runner.temp }}/offline-demo"
+          --work-dir "${{ runner.temp }}/offline-demo-db"
       - name: Save test and evaluation reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -43,3 +48,4 @@ jobs:
             test-results.xml
             ${{ runner.temp }}/evaluation.json
             ${{ runner.temp }}/policy-benchmark/
+            ${{ runner.temp }}/offline-demo/
