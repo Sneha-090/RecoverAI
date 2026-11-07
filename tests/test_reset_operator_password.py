@@ -63,3 +63,62 @@ def test_cli_never_prints_password_or_hash(tmp_path, monkeypatch, capsys):
     output = capsys.readouterr().out
     assert 'Password updated locally' in output
     assert PASSWORD not in output and 'pbkdf2' not in output
+
+
+@pytest.mark.parametrize('password,confirmation,expected', [
+    ('short', 'short', 'Use a password with 12 to 1024 characters'),
+    ('x' * 1025, 'x' * 1025, 'Use a password with 12 to 1024 characters'),
+    (PASSWORD, 'different', 'Passwords must match'),
+])
+def test_cli_explains_invalid_input_without_disclosing_it(tmp_path, monkeypatch, capsys,
+                                                         password, confirmation, expected):
+    env = tmp_path / '.env'
+    original = 'OPERATOR_PASSWORD_HASH=existing\n'
+    env.write_text(original)
+    monkeypatch.setattr(reset, 'ENV_PATH', env)
+    monkeypatch.setattr(reset, 'getpass', Mock(side_effect=[password, confirmation]))
+    with pytest.raises(SystemExit) as error:
+        reset.main()
+    output = str(error.value) + capsys.readouterr().out
+    assert expected in output
+    assert password not in output and confirmation not in output
+    assert 'pbkdf2' not in output
+    assert env.read_text() == original
+
+
+def test_cli_hides_filesystem_error_details(tmp_path, monkeypatch, capsys):
+    env = tmp_path / '.env'
+    original = 'OPERATOR_PASSWORD_HASH=existing\n'
+    env.write_text(original)
+    monkeypatch.setattr(reset, 'ENV_PATH', env)
+    monkeypatch.setattr(reset, 'getpass', Mock(side_effect=[PASSWORD, PASSWORD]))
+    monkeypatch.setattr(reset.os, 'replace', Mock(side_effect=OSError('private/path/secret')))
+    with pytest.raises(SystemExit) as error:
+        reset.main()
+    output = str(error.value) + capsys.readouterr().out
+    assert 'Check write permission and free disk space' in output
+    assert 'private/path/secret' not in output and PASSWORD not in output
+    assert 'pbkdf2' not in output
+    assert env.read_text() == original
+    assert not list(tmp_path.glob('.operator-reset-*'))
+
+
+@pytest.mark.parametrize('contents,expected', [
+    (None, 'A regular local .env file is required'),
+    ('OPERATOR_PASSWORD_HASH=one\nOPERATOR_PASSWORD_HASH=two\n',
+     'Multiple password entries found'),
+])
+def test_cli_explains_configuration_errors(tmp_path, monkeypatch, contents, expected):
+    env = tmp_path / '.env'
+    if contents is not None:
+        env.write_text(contents)
+    monkeypatch.setattr(reset, 'ENV_PATH', env)
+    monkeypatch.setattr(reset, 'getpass', Mock(side_effect=[PASSWORD, PASSWORD]))
+    with pytest.raises(SystemExit) as error:
+        reset.main()
+    assert expected in str(error.value)
+    assert PASSWORD not in str(error.value)
+    if contents is not None:
+        assert env.read_text() == contents
+    else:
+        assert not env.exists()

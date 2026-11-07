@@ -50,8 +50,12 @@ def main():
     confirmation = getpass('Confirm new password: ')
     try:
         reset_password(ENV_PATH, password, confirmation)
-    except (ValueError, OSError):
-        raise SystemExit('Password reset could not complete. Check matching passwords, length, and local .env access.') from None
+    except ValueError as error:
+        # These validation messages contain no entered password or hash.
+        raise SystemExit(f'Password reset could not complete: {error}') from None
+    except OSError:
+        # Filesystem errors can include private paths; show safe guidance only.
+        raise SystemExit('Password reset could not complete: Cannot update the local .env file. Check write permission and free disk space.') from None
     print('Password updated locally. Username unchanged. Restart RecoverAI to use the new password.')
 
 
