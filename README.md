@@ -250,3 +250,15 @@ unknown-cause review outcomes or real merchant effectiveness. Offline automatic
 walkthrough scenarios use the explicit `payment_declined` fixture reason.
 Historical recorded diagnoses and outcomes are retained; this policy applies to
 new decisions and does not rewrite recovered cases.
+
+
+### Inspecting action preference
+
+Dashboard headline totals now cover **Razorpay Test Mode** records only. The
+**Action Distribution** tab separates Test Mode from simulation and filters by
+recorded diagnosis. It distinguishes each case's first recorded decision from
+executed actions and human-approved executions, includes pending manual
+assessments, and shows the denominator and unprocessed cases. Cause-wise counts
+help inspect case mix; unequal action shares are not evidence of bias or causal
+effectiveness. The tab is descriptive, and does not combine synthetic evidence
+with provider Test Mode records or present Test Mode money as merchant revenue.

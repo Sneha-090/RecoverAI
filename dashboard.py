@@ -27,9 +27,8 @@ from app.services.execution import human_review_action
 from app.ui.operator_login import require_dashboard_operator
 from app.ui.reconciliation import render_reconciliation
 from app.ui.policy_benchmark import render_policy_benchmark
-from app.services.reporting import (
-    compute_impact_metrics,
-)
+from app.ui.action_distribution import render_action_distribution
+from app.services.action_reporting import build_action_report
 
 
 # =====================================================
@@ -52,28 +51,28 @@ db = SessionLocal()
 # TOP-LEVEL RECOVERY SNAPSHOT
 # =====================================================
 
-impact_snapshot = compute_impact_metrics(db)
+impact_snapshot = build_action_report(db, "Razorpay Test Mode")
 
 kpi1, kpi2, kpi3 = st.columns(3)
 
 kpi1.metric(
-    "Payments in Simulation",
-    impact_snapshot["total_payments"],
+    "Razorpay Test Mode cases",
+    impact_snapshot["cases"],
 )
 
 kpi2.metric(
-    "Recovered Payments",
-    impact_snapshot["recovered_count"],
+    "Recovered Test Mode cases",
+    impact_snapshot["recovered_cases"],
 )
 
 kpi3.metric(
-    "Revenue Recovered",
-    f"Rs.{impact_snapshot['total_recovered']:,.2f}",
+    "Test Mode amount recovered",
+    f"Rs.{impact_snapshot['recovered_amount']:,.2f}",
 )
 
 st.caption(
-    "Synthetic impact snapshot — "
-    "live Razorpay cases are shown in the Live Razorpay Cases tab."
+    "Razorpay Test Mode records only; no real merchant revenue is represented. "
+    "Synthetic results are in Case Simulation and Policy Benchmark."
 )
 
 
@@ -125,6 +124,7 @@ def get_recovery_order_info(payment_id: str):
 
 (
     tab_live,
+    tab_distribution,
     tab_batch,
     tab_review,
     tab_reconciliation,
@@ -134,6 +134,7 @@ def get_recovery_order_info(payment_id: str):
 ) = st.tabs(
     [
         "Live Razorpay Cases",
+        "Action Distribution",
         "Case Simulation",
         "Human Review",
         "Recovery Review",
@@ -142,6 +143,10 @@ def get_recovery_order_info(payment_id: str):
         "Decision Explanation",
     ]
 )
+
+
+with tab_distribution:
+    render_action_distribution(db)
 
 
 # =====================================================
@@ -211,14 +216,12 @@ with tab_live:
                         if diagnosis
                         else "unknown"
                     ),
-                    "Actions Tried": (
-                        ", ".join(
-                            action.action_type
-                            for action in actions
-                        )
-                        if actions
-                        else "none"
-                    ),
+                    "Executed Actions": ", ".join(
+                        action.action_type for action in actions if action.decision_type == DecisionType.auto
+                    ) or "none",
+                    "Pending Review": ", ".join(
+                        action.action_type for action in actions if action.review_status == ReviewStatus.pending
+                    ) or "none",
                     "Decision Type": (
                         actions[-1].decision_type.value
                         if actions

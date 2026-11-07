@@ -220,3 +220,26 @@ def test_unknown_cause_needs_explicit_operator_choice_before_provider_creation(r
     with review_ui() as db:
         assert db.get(Action, review_id).review_status.value == 'actioned'
         assert db.query(Action).filter_by(payment_id='pay_unknown_ui', decision_type='auto').one().action_type == 'payment_link'
+
+
+
+def test_action_distribution_filters_sources_and_top_metrics_are_test_mode_only(review_ui):
+    with review_ui() as db:
+        db.add_all([
+            Payment(payment_id='pay_mix', amount=499, status='recovered'),
+            Payment(payment_id='sim_mix', amount=9000, status='recovered'),
+        ])
+        db.commit()
+    app = login(AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'dashboard.py')).run(timeout=25))
+    assert 'Action Distribution' in [tab.label for tab in app.tabs]
+    assert app.metric[0].label == 'Razorpay Test Mode cases' and app.metric[0].value == '1'
+    assert app.metric[2].label == 'Test Mode amount recovered' and app.metric[2].value == 'Rs.499.00'
+    tab = next(tab for tab in app.tabs if tab.label == 'Action Distribution')
+    assert tab.metric[0].value == '1'
+    app.segmented_control(key='action_distribution_scope').set_value('Simulation').run(timeout=25)
+    assert not app.exception
+    assert app.metric[2].value == 'Rs.499.00'
+    assert any('Source: Simulation.' in item.value for item in app.caption)
+    app.selectbox(key='action_distribution_cause').select('Not recorded').run(timeout=25)
+    assert not app.exception
+    assert any('do not establish bias' in item.value for item in app.info)
