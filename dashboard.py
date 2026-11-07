@@ -623,9 +623,8 @@ with tab_guardrails:
             True,
         ),
         (
-            "Human review confidence band",
-            f"{settings.confidence_band_low}-"
-            f"{settings.confidence_band_high}",
+            "Near-tie review margin (business policy)",
+            f"{settings.min_action_margin_ratio:.1%} of payment amount; not statistical confidence",
             True,
         ),
         (

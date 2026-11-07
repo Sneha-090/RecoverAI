@@ -43,8 +43,7 @@ def decide_from_predictions(
     return select_recovery_action(
         payment.amount, predictions, retry_eligible, retry_reason, excluded_actions,
         action_costs=ACTION_COSTS, score_floor=settings.score_floor,
-        confidence_band_low=settings.confidence_band_low,
-        confidence_band_high=settings.confidence_band_high,
+        min_action_margin_ratio=settings.min_action_margin_ratio,
         human_review_amount_threshold=settings.human_review_amount_threshold,
     )
 

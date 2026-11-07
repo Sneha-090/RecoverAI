@@ -27,8 +27,7 @@ class Settings(BaseSettings):
 
     # Decision thresholds (Section 10)
     score_floor: float = 0.0
-    confidence_band_low: float = 0.40
-    confidence_band_high: float = 0.60
+    min_action_margin_ratio: float = Field(default=0.02, ge=0, le=1)
     human_review_amount_threshold: float = 50000.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

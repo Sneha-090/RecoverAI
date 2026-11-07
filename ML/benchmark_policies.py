@@ -41,8 +41,7 @@ class BenchmarkConfig:
     max_prior_retries: int = 3
     human_review_amount_threshold: float = 50000.0
     score_floor: float = 0.0
-    confidence_band_low: float = 0.40
-    confidence_band_high: float = 0.60
+    min_action_margin_ratio: float = 0.02
     intervention_budget: int = 1
 
 
@@ -89,8 +88,7 @@ def choose(policy, context, predictions, config):
     decision = select_recovery_action(
         context['amount'], predictions, retry_ok, 'prior retry budget exhausted',
         action_costs=config.costs, score_floor=config.score_floor,
-        confidence_band_low=config.confidence_band_low if guarded else 2.0,
-        confidence_band_high=config.confidence_band_high if guarded else 2.0,
+        min_action_margin_ratio=config.min_action_margin_ratio if guarded else None,
         human_review_amount_threshold=config.human_review_amount_threshold,
     )
     return decision['chosen_action'], decision['decision_type']
@@ -187,8 +185,10 @@ def run_benchmark(dataset, seeds=(11, 29, 42, 73, 101), bootstrap_repetitions=20
             'Each synthetic context supplies one fixed potential-outcome label for every action; selectors cannot inspect labels.',
             'All policies share the same test contexts, costs, one-intervention budget and recovery-window/high-value guards.',
             'The dataset lacks retry-specific history/cooling-off timestamps: prior attempts are assumed failed retries and cooling-off satisfied.',
+            'Synthetic contexts assume a supported original method and available alternative checkout methods; method availability and switching effectiveness are not observed.',
+            'The 2% default near-tie margin is a predeclared business assumption, not learned confidence or tuned to test results.',
             'Cause rules are fixed before evaluation; no rule or threshold is tuned to these results.',
-            'ml_guarded reuses application confidence deferral; ml_value_only is an ablation with that deferral disabled.',
+            'ml_guarded reuses the configured near-tie net-value review guard; ml_value_only disables that guard. The margin is not statistical confidence.',
             'Deferred human reviews contribute zero immediate recovery and no action cost; reviewer labor or later decisions are not simulated.',
         ],
         'limitations': [

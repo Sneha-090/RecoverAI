@@ -279,3 +279,15 @@ on merchant/account configuration; display customisation is not a payment-networ
 restriction. SMS/email notifications and provider reminders are disabled.
 
 API reference: https://tfs.np.razorpay.in/docs/api/payments/payment-links/customise-payment-methods
+
+
+### Review policy and probability meaning
+
+Estimated recovery probability is not confidence in choosing the best action.
+The former 40-60% probability band has been replaced by `MIN_ACTION_MARGIN_RATIO`
+(default `0.02`): review is requested when the top two eligible cost-adjusted
+values differ by no more than 2% of the payment amount. This is a configurable,
+predeclared business rule, not an empirically established confidence interval.
+High-value and unsupported-cause reviews still apply. The matched benchmark uses
+the same selector and reports reviews as unresolved; it assumes supported
+original payment methods, which its synthetic table does not record.

@@ -8,7 +8,7 @@ def make_payment(amount):
     return SimpleNamespace(amount=amount)
 
 
-def test_1_auto_execute_high_confidence_low_amount():
+def test_1_auto_execute_well_separated_values():
     p = make_payment(1000)
     preds = {"retry": 0.85, "payment_link": 0.30, "alt_method": 0.20}
     result = decide_from_predictions(p, preds, retry_eligible=True, retry_reason="retry eligible")
@@ -16,9 +16,9 @@ def test_1_auto_execute_high_confidence_low_amount():
     assert result["chosen_action"] == "retry"
 
 
-def test_2_human_review_confidence_in_band():
+def test_2_human_review_near_tied_values():
     p = make_payment(1000)
-    preds = {"retry": 0.50, "payment_link": 0.30, "alt_method": 0.20}
+    preds = {"retry": 0.50, "payment_link": 0.49, "alt_method": 0.20}
     result = decide_from_predictions(p, preds, retry_eligible=True, retry_reason="retry eligible")
     assert result["decision_type"] == "human_review"
     assert result["chosen_action"] == "retry"
@@ -62,18 +62,18 @@ def test_6_no_candidates_when_only_ineligible_retry_predicted():
     assert "max retry attempts" in result["reason"]
 
 
-def test_7_boundary_confidence_exactly_at_lower_band_edge():
+def test_7_margin_exactly_at_boundary_requires_review():
     p = make_payment(1000)
-    preds = {"retry": 0.40, "payment_link": 0.10, "alt_method": 0.10}
-    result = decide_from_predictions(p, preds, retry_eligible=True, retry_reason="retry eligible")
-    assert result["decision_type"] == "human_review"
+    preds = {"retry": .5, "payment_link": .49, "alt_method": .1}
+    result = decide_from_predictions(p, preds, True, 'eligible')
+    assert result['decision_type'] == 'human_review'
+    assert 'not statistical confidence' in result['reason']
 
 
-def test_8_boundary_confidence_exactly_at_upper_band_edge():
+def test_8_probability_near_half_is_not_itself_uncertainty():
     p = make_payment(1000)
-    preds = {"retry": 0.60, "payment_link": 0.10, "alt_method": 0.10}
-    result = decide_from_predictions(p, preds, retry_eligible=True, retry_reason="retry eligible")
-    assert result["decision_type"] == "human_review"
+    preds = {"retry": .5, "payment_link": .2, "alt_method": .1}
+    assert decide_from_predictions(p, preds, True, 'eligible')['decision_type'] == 'auto'
 
 
 def test_9_amount_exactly_at_threshold_is_not_high_value():
@@ -90,3 +90,24 @@ def test_10_best_action_chosen_by_score_not_raw_probability():
     preds = {"retry": 0.850, "payment_link": 0.855, "alt_method": 0.10}
     result = decide_from_predictions(p, preds, retry_eligible=True, retry_reason="retry eligible")
     assert result["chosen_action"] == "retry"
+
+
+def test_margin_uses_eligible_actions_only():
+    result = decide_from_predictions(make_payment(1000),
+        {'retry':.81,'payment_link':.8,'alt_method':.1}, False, 'retry blocked')
+    assert result['chosen_action']=='payment_link' and result['decision_type']=='auto'
+
+
+def test_single_remaining_candidate_has_no_artificial_runner_up():
+    result = decide_from_predictions(make_payment(1000), {'payment_link':.5}, True, 'eligible')
+    assert result['decision_type']=='auto'
+
+
+import pytest
+from app.services.policy import select_recovery_action
+
+
+@pytest.mark.parametrize('probability', [float('nan'),float('inf'),-0.1,1.1])
+def test_invalid_probability_cannot_authorize_an_action(probability):
+    with pytest.raises(ValueError):
+        select_recovery_action(499, {'retry':probability}, True, 'eligible', action_costs={'retry':5})

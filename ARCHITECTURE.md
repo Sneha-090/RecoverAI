@@ -122,7 +122,7 @@ policy gets the same costs and maximum of one intervention. The baseline does
 not use the evaluated model's probabilities as an outcome generator.
 
 `ml_guarded` calls the same pure selector as the app. `ml_value_only` is an
-ablation without confidence deferral. Deferred reviews remain unresolved, so
+ablation without the near-tie net-value review guard. Deferred reviews remain unresolved, so
 automatic results cannot be treated as full post-review workflow performance.
 The dataset lacks retry-specific history and cooling-off timestamps; assumptions
 for those fields are explicit. Costs are modeled intervention costs, not a

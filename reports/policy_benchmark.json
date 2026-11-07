@@ -2,8 +2,8 @@
   "schema_version": 1,
   "scope": "synthetic single-intervention policy benchmark; not merchant uplift",
   "dataset_sha256": "c591a373f3284ba01ac5a30b4a83f5cf58debe1e2d66f467e3956b371f0b99b9",
-  "benchmark_code_sha256": "9548cf95d5cf58942e6b03388cd0304ffb1fc67d93642e73f68ceb773f2a878d",
-  "selector_code_sha256": "fc5e6498c210543f6ca0614b00cc427201a12070050b9587ebbdfdd3a029c973",
+  "benchmark_code_sha256": "3c0884d377bdce21e24f95e89c335295a15f9fbab1aa473e293a5324a0fb052a",
+  "selector_code_sha256": "d541009e4b80266fcf2f3d48a2ea91798517205355beabc5d418a3d21c11a1d0",
   "training_code_sha256": "230ee9fbcb3931db4f61e1d81538538b35e012445266ff7afffeba9aa9f69a2e",
   "text_hash_normalization": "UTF-8 with universal LF newlines",
   "sklearn_version": "1.9.0",
@@ -17,8 +17,7 @@
     "max_prior_retries": 3,
     "human_review_amount_threshold": 50000.0,
     "score_floor": 0.0,
-    "confidence_band_low": 0.4,
-    "confidence_band_high": 0.6,
+    "min_action_margin_ratio": 0.02,
     "intervention_budget": 1
   },
   "primary_seed": 42,
@@ -75,15 +74,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 291,
-          "reviewed_later_not_simulated": 79,
+          "interventions": 339,
+          "reviewed_later_not_simulated": 31,
           "skipped": 30,
-          "recovered": 78,
-          "gross_recovered_rupees": 63959.01,
-          "action_cost_rupees": 3405.0,
-          "net_recovered_rupees": 60554.01,
-          "recovery_rate": 0.195,
-          "interventions_per_context": 0.7275
+          "recovered": 117,
+          "gross_recovered_rupees": 102445.82,
+          "action_cost_rupees": 3865.0,
+          "net_recovered_rupees": 98580.82,
+          "recovery_rate": 0.2925,
+          "interventions_per_context": 0.8475
         }
       }
     },
@@ -132,15 +131,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 307,
-          "reviewed_later_not_simulated": 70,
+          "interventions": 281,
+          "reviewed_later_not_simulated": 96,
           "skipped": 23,
-          "recovered": 90,
-          "gross_recovered_rupees": 85067.27,
-          "action_cost_rupees": 3075.0,
-          "net_recovered_rupees": 81992.27,
-          "recovery_rate": 0.225,
-          "interventions_per_context": 0.7675
+          "recovered": 106,
+          "gross_recovered_rupees": 112606.94,
+          "action_cost_rupees": 2735.0,
+          "net_recovered_rupees": 109871.94,
+          "recovery_rate": 0.265,
+          "interventions_per_context": 0.7025
         }
       }
     },
@@ -189,15 +188,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 301,
-          "reviewed_later_not_simulated": 69,
+          "interventions": 341,
+          "reviewed_later_not_simulated": 29,
           "skipped": 30,
-          "recovered": 91,
-          "gross_recovered_rupees": 101494.7,
-          "action_cost_rupees": 3365.0,
-          "net_recovered_rupees": 98129.7,
-          "recovery_rate": 0.2275,
-          "interventions_per_context": 0.7525
+          "recovered": 126,
+          "gross_recovered_rupees": 132713.23,
+          "action_cost_rupees": 3610.0,
+          "net_recovered_rupees": 129103.23,
+          "recovery_rate": 0.315,
+          "interventions_per_context": 0.8525
         }
       }
     },
@@ -246,15 +245,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 299,
-          "reviewed_later_not_simulated": 72,
+          "interventions": 304,
+          "reviewed_later_not_simulated": 67,
           "skipped": 29,
-          "recovered": 84,
-          "gross_recovered_rupees": 85017.45,
-          "action_cost_rupees": 3525.0,
-          "net_recovered_rupees": 81492.45,
-          "recovery_rate": 0.21,
-          "interventions_per_context": 0.7475
+          "recovered": 112,
+          "gross_recovered_rupees": 105068.6,
+          "action_cost_rupees": 3295.0,
+          "net_recovered_rupees": 101773.6,
+          "recovery_rate": 0.28,
+          "interventions_per_context": 0.76
         }
       }
     },
@@ -303,15 +302,15 @@
         },
         "ml_guarded": {
           "contexts": 400,
-          "interventions": 299,
-          "reviewed_later_not_simulated": 75,
+          "interventions": 285,
+          "reviewed_later_not_simulated": 89,
           "skipped": 26,
-          "recovered": 89,
-          "gross_recovered_rupees": 105146.92,
-          "action_cost_rupees": 3305.0,
-          "net_recovered_rupees": 101841.92,
-          "recovery_rate": 0.2225,
-          "interventions_per_context": 0.7475
+          "recovered": 110,
+          "gross_recovered_rupees": 127065.25,
+          "action_cost_rupees": 2805.0,
+          "net_recovered_rupees": 124260.25,
+          "recovery_rate": 0.275,
+          "interventions_per_context": 0.7125
         }
       }
     }
@@ -347,15 +346,15 @@
       ]
     },
     "ml_guarded": {
-      "net_delta_rupees": -33060.200000000004,
+      "net_delta_rupees": -2086.67,
       "net_delta_95_percentile_interval": [
-        -50707.89274999999,
-        -14531.180500000004
+        -14517.81875,
+        12088.697499999995
       ],
-      "recovery_rate_delta": -0.105,
+      "recovery_rate_delta": -0.0175,
       "rate_delta_95_percentile_interval": [
-        -0.1425,
-        -0.0675
+        -0.045,
+        0.01
       ]
     }
   },
@@ -379,18 +378,20 @@
       "reviewed_later_not_simulated": 0.0
     },
     "ml_guarded": {
-      "net_recovered_rupees": 84802.06999999999,
-      "recovery_rate": 0.21600000000000003,
-      "interventions": 299.4,
-      "reviewed_later_not_simulated": 73.0
+      "net_recovered_rupees": 112717.968,
+      "recovery_rate": 0.28550000000000003,
+      "interventions": 310.0,
+      "reviewed_later_not_simulated": 62.4
     }
   },
   "assumptions": [
     "Each synthetic context supplies one fixed potential-outcome label for every action; selectors cannot inspect labels.",
     "All policies share the same test contexts, costs, one-intervention budget and recovery-window/high-value guards.",
     "The dataset lacks retry-specific history/cooling-off timestamps: prior attempts are assumed failed retries and cooling-off satisfied.",
+    "Synthetic contexts assume a supported original method and available alternative checkout methods; method availability and switching effectiveness are not observed.",
+    "The 2% default near-tie margin is a predeclared business assumption, not learned confidence or tuned to test results.",
     "Cause rules are fixed before evaluation; no rule or threshold is tuned to these results.",
-    "ml_guarded reuses application confidence deferral; ml_value_only is an ablation with that deferral disabled.",
+    "ml_guarded reuses the configured near-tie net-value review guard; ml_value_only disables that guard. The margin is not statistical confidence.",
     "Deferred human reviews contribute zero immediate recovery and no action cost; reviewer labor or later decisions are not simulated."
   ],
   "limitations": [
@@ -400,5 +401,5 @@
     "Bootstrap intervals are conditional on the primary synthetic sample and fitted model, not a production guarantee.",
     "The model is refitted on each training partition only; the application model file and merchant database are untouched."
   ],
-  "decisions_sha256": "ecba27318f8be17ea6d441929b3234af55397412987207e30c27703d9fb443f0"
+  "decisions_sha256": "44b42b415d9acff28db81ae79785168f8ed10217d2cf3529df11bfaa5a9d1ccd"
 }
