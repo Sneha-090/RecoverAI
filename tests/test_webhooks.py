@@ -110,7 +110,7 @@ def test_signed_historical_resource_event_uses_original_case(client, db_session,
         "items": [{"status": "captured", "amount": 49900, "currency": "INR"}]})
     monkeypatch.setattr("app.services.execution.client.payment_link.fetch", lambda _: {
         "id": "plink_old", "status": "paid" if event == "payment.captured" else "created",
-        "amount": 49900, "amount_paid": 49900, "currency": "INR"})
+        "amount": 49900, "amount_paid": 49900 if event == "payment.captured" else 0, "currency": "INR"})
     ingest = Mock(side_effect=AssertionError("A recovery payment must not become a separate case"))
     monkeypatch.setattr("app.api.webhooks.fetch_and_store_payment", ingest)
     advance = Mock(side_effect=AssertionError("A historical event must not create another action"))

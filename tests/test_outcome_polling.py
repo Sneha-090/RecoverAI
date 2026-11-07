@@ -104,9 +104,9 @@ def test_followup_worker_refuses_live_credentials(monkeypatch):
 
 
 
-@pytest.mark.parametrize('status',['partially_paid','expired','cancelled'])
-def test_partial_payment_never_advances_to_another_full_amount_checkout(polling,monkeypatch,status):
-    value=link(status);value['amount_paid']=10000
+@pytest.mark.parametrize('status,paid',[('partially_paid',10000),('expired',10000),('cancelled',10000),('created',49900)])
+def test_partial_payment_never_advances_to_another_full_amount_checkout(polling,monkeypatch,status,paid):
+    value=link(status);value['amount_paid']=paid
     monkeypatch.setattr('app.services.execution.client.payment_link.fetch',lambda _:value)
     forbidden=Mock(side_effect=AssertionError('Partial payment must not trigger full-amount collection'))
     monkeypatch.setattr('app.services.execution.create_test_order',forbidden)

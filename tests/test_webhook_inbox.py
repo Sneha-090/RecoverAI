@@ -80,7 +80,7 @@ def test_early_event_replays_after_execution_persists(inbox, monkeypatch, kind, 
     resource = {'id': ('order_' if kind == 'order' else 'plink_') + 'early',
                 'notes': {'recoverai_intent_id': 'intent_early'},
                 'status': 'paid' if event == 'payment.captured' else 'created',
-                'amount': 49900, 'amount_paid': 49900, 'currency': 'INR'}
+                'amount': 49900, 'amount_paid': 49900 if event == 'payment.captured' else 0, 'currency': 'INR'}
     monkeypatch.setattr('app.services.webhook_inbox.client.order.fetch', lambda _: resource)
     monkeypatch.setattr('app.services.webhook_inbox.client.payment_link.fetch', lambda _: resource)
     ingest = Mock(side_effect=AssertionError('Early recovery must not become a separate case'))
