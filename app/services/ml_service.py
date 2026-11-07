@@ -69,10 +69,10 @@ DEFAULT_PAST_RATE = 0.5  # neutral assumption when no customer history exists
 
 
 def _get_attempts_so_far(db, payment_id: str) -> int:
-    """Counts how many actions have already been taken on this payment."""
+    """Count executed actions, including approvals; recommendations are not attempts."""
     return (
         db.query(Action)
-        .filter(Action.payment_id == payment_id)
+        .filter(Action.payment_id == payment_id, Action.decision_type == "auto")
         .count()
     )
 
