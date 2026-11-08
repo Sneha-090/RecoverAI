@@ -103,12 +103,21 @@ python -m venv .venv
 mkdir .venv\tmp
 set TEMP=%CD%\.venv\tmp
 set TMP=%TEMP%
-.venv\Scripts\python.exe -m pip install --no-cache-dir -r requirements.txt
+.venv\Scripts\python.exe -m pip install --no-cache-dir -r requirements-dev.txt
 ```
 
-Dependencies other than scikit-learn are not fully locked yet; the CI badge and
-verification record identify actual tested runs rather than guaranteeing every
-future dependency combination.
+`requirements.txt` installs the hash-checked runtime lock; `requirements-dev.txt`
+adds the locked test tools. The supported interpreter is Python 3.13. Universal
+resolution records platform markers and distribution hashes; Windows local checks
+and Linux CI validate the supported platforms. No implicit package upgrade occurs
+at install. Source requirements are in `requirements.in`/`requirements-dev.in`.
+
+To deliberately regenerate a lock, install `uv==0.13.7` in the D drive environment,
+set `UV_CACHE_DIR=%CD%\.venv\uv-cache` and `UV_PYTHON_DOWNLOADS=never`, then run
+`uv pip compile requirements.in --universal --python-version 3.13 --generate-hashes --output-file requirements.lock`
+and the equivalent command for `requirements-dev.in`. Review/test the resulting
+version changes before deployment. The initial locks preserve the working local
+versions; a lock controls dependency resolution, not application correctness.
 
 ## Configure actual Razorpay Test Mode operation
 

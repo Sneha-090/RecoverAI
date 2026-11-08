@@ -1,13 +1,2 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-pydantic-settings
-python-dotenv
-razorpay
-pytest
-streamlit
-pandas
-numpy
-scikit-learn==1.9.0
-joblib
-httpx
+--require-hashes
+-r requirements.lock
