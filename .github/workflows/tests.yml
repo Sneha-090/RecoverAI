@@ -28,6 +28,15 @@ jobs:
         run: python -m pip check
       - name: Run regression tests without live credentials
         run: python -m pytest -q --junitxml=test-results.xml
+      - name: Verify fresh versioned database upgrade
+        env:
+          RAZORPAY_KEY_ID: rzp_test_migration_ci
+          RAZORPAY_KEY_SECRET: migration_ci_fixture
+          RAZORPAY_WEBHOOK_SECRET: migration_ci_fixture
+          DATABASE_URL: sqlite:///${{ runner.temp }}/migration-smoke.sqlite
+        run: |
+          python -m app.db.init_db
+          python -m app.db.init_db --status
       - name: Reproduce held-out synthetic ML evaluation
         run: >-
           python -m ML.train_model

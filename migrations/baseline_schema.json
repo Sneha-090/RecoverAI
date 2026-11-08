@@ -1,0 +1,852 @@
+{
+  "actions": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "chosen_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "decision_type",
+        "nullable": false,
+        "type": "VARCHAR(12)"
+      },
+      {
+        "default": null,
+        "name": "escalated_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "reason",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "review_deadline",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "review_status",
+        "nullable": true,
+        "type": "VARCHAR(8)"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": []
+  },
+  "audit_log": {
+    "columns": [
+      {
+        "default": null,
+        "name": "event_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payload_json",
+        "nullable": true,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "razorpay_event_id",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "reason",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "timestamp",
+        "nullable": true,
+        "type": "DATETIME"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": [
+      [
+        "razorpay_event_id"
+      ]
+    ]
+  },
+  "customers": {
+    "columns": [
+      {
+        "default": null,
+        "name": "avg_attempts",
+        "nullable": true,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "customer_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "last_recovery_days_ago",
+        "nullable": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "previous_failures",
+        "nullable": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "previous_recoveries",
+        "nullable": true,
+        "type": "INTEGER"
+      }
+    ],
+    "foreign_keys": [],
+    "indexes": [],
+    "primary_key": [
+      "customer_id"
+    ],
+    "unique": []
+  },
+  "diagnoses": {
+    "columns": [
+      {
+        "default": null,
+        "name": "cause",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "diagnosed_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": []
+  },
+  "execution_outcomes": {
+    "columns": [
+      {
+        "default": null,
+        "name": "execution_id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "outcome_id",
+        "nullable": false,
+        "type": "INTEGER"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "execution_id"
+        ],
+        "options": {},
+        "table": "recovery_executions",
+        "target": [
+          "id"
+        ]
+      },
+      {
+        "columns": [
+          "outcome_id"
+        ],
+        "options": {},
+        "table": "outcomes",
+        "target": [
+          "id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "execution_id"
+    ],
+    "unique": [
+      [
+        "outcome_id"
+      ]
+    ]
+  },
+  "ml_predictions": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "predicted_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "probability",
+        "nullable": false,
+        "type": "FLOAT"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": []
+  },
+  "outcomes": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "observed_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "observed_result",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": []
+  },
+  "payments": {
+    "columns": [
+      {
+        "default": null,
+        "name": "amount",
+        "nullable": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "customer_id",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "order_id",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payment_method",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "razorpay_error_code",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "razorpay_error_reason",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "razorpay_state",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "status",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "customer_id"
+        ],
+        "options": {},
+        "table": "customers",
+        "target": [
+          "customer_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "payment_id"
+    ],
+    "unique": []
+  },
+  "recovery_executions": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "amount_paise",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "audit_id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "currency",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "provider_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "provider_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "action_id"
+        ],
+        "options": {},
+        "table": "actions",
+        "target": [
+          "id"
+        ]
+      },
+      {
+        "columns": [
+          "audit_id"
+        ],
+        "options": {},
+        "table": "audit_log",
+        "target": [
+          "id"
+        ]
+      },
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "unique": false
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "unique": [
+      [
+        "action_id"
+      ],
+      [
+        "audit_id"
+      ],
+      [
+        "provider_type",
+        "provider_id"
+      ]
+    ]
+  },
+  "recovery_intents": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "execution_id",
+        "nullable": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "provider_id",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "provider_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "state",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "execution_id"
+        ],
+        "options": {},
+        "table": "recovery_executions",
+        "target": [
+          "id"
+        ]
+      },
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "unique": false
+      },
+      {
+        "columns": [
+          "provider_id"
+        ],
+        "unique": false
+      }
+    ],
+    "primary_key": [
+      "id"
+    ],
+    "unique": [
+      [
+        "execution_id"
+      ]
+    ]
+  },
+  "recovery_reservations": {
+    "columns": [
+      {
+        "default": null,
+        "name": "owner",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "state",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "type": "DATETIME"
+      }
+    ],
+    "foreign_keys": [],
+    "indexes": [],
+    "primary_key": [
+      "payment_id"
+    ],
+    "unique": []
+  },
+  "recovery_scores": {
+    "columns": [
+      {
+        "default": null,
+        "name": "action_type",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "cost_used",
+        "nullable": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "eligibility_reason",
+        "nullable": true,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "evaluated_at",
+        "nullable": true,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "payment_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "retry_eligible",
+        "nullable": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "score",
+        "nullable": false,
+        "type": "FLOAT"
+      }
+    ],
+    "foreign_keys": [
+      {
+        "columns": [
+          "payment_id"
+        ],
+        "options": {},
+        "table": "payments",
+        "target": [
+          "payment_id"
+        ]
+      }
+    ],
+    "indexes": [],
+    "primary_key": [
+      "id"
+    ],
+    "unique": []
+  },
+  "webhook_inbox": {
+    "columns": [
+      {
+        "default": null,
+        "name": "attempts",
+        "nullable": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "available_at",
+        "nullable": false,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "event_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "payload_json",
+        "nullable": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "state",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [],
+    "indexes": [
+      {
+        "columns": [
+          "available_at"
+        ],
+        "unique": false
+      },
+      {
+        "columns": [
+          "state"
+        ],
+        "unique": false
+      }
+    ],
+    "primary_key": [
+      "event_id"
+    ],
+    "unique": []
+  },
+  "webhook_receipts": {
+    "columns": [
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "type": "DATETIME"
+      },
+      {
+        "default": null,
+        "name": "event_id",
+        "nullable": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "state",
+        "nullable": false,
+        "type": "VARCHAR"
+      }
+    ],
+    "foreign_keys": [],
+    "indexes": [],
+    "primary_key": [
+      "event_id"
+    ],
+    "unique": []
+  }
+}

@@ -53,6 +53,13 @@ class ProcessPaymentRequest(BaseModel):
     payment_id: str = Field(pattern=PAYMENT_ID)
 
 
+@app.get('/ready')
+def ready():
+    from app.services.readiness import check_readiness
+    result=check_readiness()
+    return JSONResponse(status_code=200 if result['status']=='ready' else 503,content=result)
+
+
 @app.get("/health")
 def health():
     return {

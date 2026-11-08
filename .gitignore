@@ -24,3 +24,7 @@ recoverai.db
 *.log
 # Temporary local credential update files
 .operator-reset-*
+
+# Local operations state and database backups
+var/
+*.migration.lock

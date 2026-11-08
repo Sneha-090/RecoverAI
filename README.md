@@ -142,9 +142,13 @@ prints neither password nor hash and preserves other `.env` values. Restart
 operator processes after changing credentials so the new hash is loaded.
 `python -m scripts.hash_password` remains available for manual hash generation.
 
-For an existing installation, stop app/workers before running `init_db`, then
-restart them. Initialization adds missing tables; it is not a migration system
-for arbitrary future schema alterations.
+Database setup now uses reviewed Alembic revisions. Stop app/workers first. A
+fresh database uses `init_db`; an existing unversioned SQLite database requires
+`python -m app.db.init_db --adopt-legacy`. Adoption validates the frozen baseline,
+checks references and creates a verified backup under `var/backups` before
+stamping/upgrading. Differing/unknown schemas stop for review. See
+[migration operations](migrations/README.md). Internal `/ready` returns 503 when
+the schema, operator setup or model artifact is not ready; `/health` is liveness.
 
 ### Run local processes in separate terminals
 
