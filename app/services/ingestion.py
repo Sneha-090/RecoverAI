@@ -22,6 +22,10 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
         .first()
     )
 
+    provider_order_id = rp_payment.get('order_id') or None
+    if existing and existing.order_id and provider_order_id != existing.order_id:
+        raise ValueError('Original provider order reference changed; operator investigation required')
+
     customer_id = rp_payment.get("customer_id") or None
     if customer_id is not None and (not isinstance(customer_id, str)
             or not re.fullmatch(r"cust_[A-Za-z0-9]{1,64}", customer_id)):
@@ -48,6 +52,8 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
     )
 
     if existing:
+        if provider_order_id:
+            existing.order_id = provider_order_id
         if customer_id:
             existing.customer_id = customer_id
         existing.razorpay_error_code = error_code

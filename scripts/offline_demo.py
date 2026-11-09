@@ -241,6 +241,7 @@ def run_scenarios(database):
             'app/services/diagnosis.py','app/services/decision.py','app/services/ml_service.py',
             'app/services/customer_history.py','app/services/ingestion.py',
             'app/services/payment_methods.py','app/services/order_service.py','app/services/razorpay_client.py',
+            'app/services/original_orders.py','app/models/models.py',
             'app/services/reservations.py','app/services/escalation.py','app/services/reconciliation.py',
             'app/services/webhook_inbox.py','app/services/webhook_replay.py',
             'scripts/demo_provider.py','scripts/render_demo_html.py']},

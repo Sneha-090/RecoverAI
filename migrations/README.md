@@ -37,3 +37,10 @@ schema version, configured operator access and model artifact integrity; `/healt
 is process liveness. The public webhook-only gateway exposes neither readiness
 nor operator routes. Readiness does not contact Razorpay or prove its credentials
 or merchant configuration are valid.
+
+Revision 0002 adds permanent original-order recovery ownership. Existing work on
+one payment keeps its ownership even when another attempt is older. Multiple
+already-acted cases for the same order become ambiguous and block new collection;
+no action, execution or outcome is merged/deleted. Fresh competing failed attempts
+share one owner. Ownership is never reassigned merely because that case closes.
+An invoice spanning distinct provider orders still needs merchant-approved mapping.

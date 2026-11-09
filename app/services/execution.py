@@ -21,6 +21,7 @@ from app.services.reservations import reserve_recovery, finish_recovery, Recover
 from app.services.execution_records import record_execution, resolve_execution
 from app.services.escalation import expire_review_under_claim
 from app.services.payment_methods import alternate_methods, is_alt_method_eligible
+from app.services.original_orders import original_order_eligibility
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -75,6 +76,9 @@ def _log_audit(db, payment_id, event_type, reason, payload=None, action=None, in
 
 
 def _create_recovery_resource(db, payment, action_type, human=False):
+    eligible, reason = original_order_eligibility(db, payment)
+    if not eligible:
+        raise ValueError(reason)
     intent = RecoveryIntent(id=uuid4().hex, payment_id=payment.payment_id,
                             action_type=action_type,
                             provider_type="order" if action_type == "retry" else "payment_link")
@@ -103,6 +107,11 @@ def _create_recovery_resource(db, payment, action_type, human=False):
 
 
 def execute_action(db, payment) -> dict:
+    # Bind the order before this request creates its per-payment processing claim.
+    eligible, reason = original_order_eligibility(db, payment)
+    if not eligible:
+        _log_audit(db, payment.payment_id, 'original_order_blocked', reason)
+        return {'chosen_action': None, 'decision_type': 'skip', 'reason': reason, 'executed': False}
     try:
         return _run_reserved(db, payment.payment_id, lambda: _execute_action(db, payment))
     except RecoveryInProgress:
@@ -111,6 +120,10 @@ def execute_action(db, payment) -> dict:
 
 def _execute_action(db, payment) -> dict:
     db.refresh(payment)
+    eligible, reason = original_order_eligibility(db, payment)
+    if not eligible:
+        _log_audit(db, payment.payment_id, 'original_order_blocked', reason)
+        return {'chosen_action': None, 'decision_type': 'skip', 'reason': reason, 'executed': False}
     # Also recognize work created before reservation tables were installed.
     pending = db.query(Action).filter_by(
         payment_id=payment.payment_id, decision_type=DecisionType.human_review,
@@ -384,6 +397,11 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
 
     return {"status": "next_action_attempted", "next": next_decision}
 def human_review_action(db, payment_id: str, chosen_action: str) -> dict:
+    payment = db.get(Payment, payment_id)
+    if payment is not None:
+        eligible, reason = original_order_eligibility(db, payment)
+        if not eligible:
+            return {'success': False, 'reason': reason}
     try:
         return _run_reserved(
             db, payment_id, lambda: _human_review_action(db, payment_id, chosen_action), "pending_review",
@@ -423,7 +441,9 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
     if payment is None:
         return {"success": False, "reason": "Payment not found."}
 
-    eligible, reason = is_recovery_eligible(payment)
+    eligible, reason = original_order_eligibility(db, payment)
+    if eligible:
+        eligible, reason = is_recovery_eligible(payment)
     if not eligible:
         _log_audit(db, payment_id, "human_review_blocked", reason)
         return {"success": False, "status": "pending_review", "reason": reason}

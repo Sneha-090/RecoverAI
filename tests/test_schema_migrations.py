@@ -5,13 +5,14 @@ from sqlalchemy import create_engine,inspect,text
 
 from app.db.session import Base
 from app.models import models  # noqa: F401
-from app.db.schema import migrate_database,schema_status,SchemaStateError
+from app.db.schema import migrate_database,schema_status,SchemaStateError,migration_config
+from alembic import command
 
 
 def test_fresh_database_uses_revision_and_is_repeatable(tmp_path):
     engine=create_engine(f"sqlite:///{(tmp_path/'fresh.sqlite').as_posix()}")
     result=migrate_database(engine)
-    assert result=={'status':'upgraded','revision':'0001','backup_created':False}
+    assert result=={'status':'upgraded','revision':'0002','backup_created':False}
     assert schema_status(engine)['is_current']
     assert set(Base.metadata.tables).issubset(inspect(engine).get_table_names())
     assert migrate_database(engine)['status']=='current'
@@ -20,7 +21,9 @@ def test_fresh_database_uses_revision_and_is_repeatable(tmp_path):
 
 def test_matching_legacy_database_requires_explicit_adoption_and_verified_backup(tmp_path):
     path=tmp_path/'existing.sqlite';engine=create_engine(f'sqlite:///{path.as_posix()}')
-    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        command.upgrade(migration_config(connection), '0001')
+        connection.exec_driver_sql('DROP TABLE alembic_version')
     with engine.begin() as connection:
         connection.execute(text("INSERT INTO customers (customer_id,previous_failures) VALUES ('keep',7)"))
     with pytest.raises(SchemaStateError,match='adopt-legacy'):migrate_database(engine)

@@ -205,3 +205,15 @@ class WebhookInbox(Base):
     attempts = Column(Integer, nullable=False, default=0)
     available_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class OriginalOrderRecovery(Base):
+    """One permanent recovery owner per provider original order; never auto-reassigned."""
+    __tablename__ = "original_order_recoveries"
+
+    order_id = Column(String, primary_key=True)
+    payment_id = Column(String, ForeignKey("payments.payment_id"), nullable=True)
+    state = Column(String, nullable=False, default="active")
+    captured_payment_id = Column(String, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

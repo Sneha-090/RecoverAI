@@ -128,7 +128,10 @@ def decide(db, payment) -> dict:
     fetch predictions and already-tried actions, decide, and persist
     the explanation. execute_action() audits skipped cases.
     """
-    eligible, reason = is_recovery_eligible(payment)
+    from app.services.original_orders import original_order_eligibility
+    eligible, reason = original_order_eligibility(db, payment)
+    if eligible:
+        eligible, reason = is_recovery_eligible(payment)
     if not eligible:
         return {"chosen_action": None, "decision_type": "skip", "reason": reason}
 
