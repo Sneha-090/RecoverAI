@@ -1,4 +1,4 @@
-from app.services.razorpay_client import client
+from app.services.razorpay_client import client, require_test_mode
 from app.services.money import amount_paise
 from app.services.payment_methods import alternate_methods
 
@@ -8,6 +8,7 @@ def create_test_order(amount_rupees: float, receipt: str, intent_id: str | None 
     Creates a Razorpay test-mode Order. Amount must be in paise.
     Returns the order dict, including 'id' (order_id) needed for checkout.
     """
+    require_test_mode()
     request = {
         "amount": amount_paise(amount_rupees),
         "currency": "INR",
@@ -26,6 +27,7 @@ def create_payment_link(amount_rupees: float, description: str, intent_id: str |
     Creates a real Razorpay test-mode Payment Link. Used for the
     'payment_link' and 'alt_method' recovery actions.
     """
+    require_test_mode()
     request = {
         "amount": amount_paise(amount_rupees),
         "currency": "INR",

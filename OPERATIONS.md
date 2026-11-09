@@ -104,3 +104,9 @@ atomically exclusive with a local database lock. A customer can pay between the
 last provider read and a new creation, or through a previously shared link: monitor
 late captures and investigate duplicates. Distinct original orders for one merchant
 invoice still require explicit invoice mapping before live use.
+
+All Razorpay requests now reject non-Test Mode authentication at the SDK transport
+boundary. Order/link creation also refuses non-test configuration before invoking
+the SDK. This applies when manually launching the API as well as using the local
+supervisor. Switching to Live Mode requires a deliberately reviewed implementation
+and merchant pilot approval; editing an environment key is insufficient.
