@@ -29,6 +29,7 @@ def sessions(tmp_path, monkeypatch):
         db.commit()
     monkeypatch.setattr('app.services.execution.decide', lambda *_: {
         'chosen_action':'payment_link','decision_type':'auto','reason':'fixture'})
+    monkeypatch.setattr('app.services.original_orders.read_original_order', lambda *args, **kwargs: {'status':'open'})
     yield factory
     engine.dispose()
 

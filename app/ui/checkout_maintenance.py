@@ -8,7 +8,7 @@ from app.services.checkout_maintenance import check_old_link,cancel_old_link
 
 def render_checkout_maintenance(db,payment_id,operator):
     payment=db.get(Payment,payment_id)
-    if not payment or payment.status not in {'recovered','closed_unrecovered'}:
+    if not payment or payment.status not in {'recovered','closed_unrecovered','paid_original'}:
         return
     references=db.query(RecoveryExecution).filter_by(payment_id=payment_id,provider_type='payment_link').all()
     if not references:return

@@ -238,7 +238,7 @@ def run_scenarios(database):
         'demo_code_sha256':text_sha256(__file__),
         'source_fingerprints':{name:text_sha256(ROOT/name) for name in [
             'app/api/webhooks.py','app/services/execution.py','app/services/policy.py',
-            'app/services/diagnosis.py','app/services/decision.py','app/services/ml_service.py',
+            'app/services/eligibility.py','app/services/diagnosis.py','app/services/decision.py','app/services/ml_service.py',
             'app/services/customer_history.py','app/services/ingestion.py',
             'app/services/payment_methods.py','app/services/order_service.py','app/services/razorpay_client.py',
             'app/services/original_orders.py','app/models/models.py',

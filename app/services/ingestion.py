@@ -59,7 +59,7 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
         existing.razorpay_error_code = error_code
         existing.razorpay_error_reason = error_reason
         # Provider status describes the original charge, not the recovery case.
-        if existing.status not in {"recovered", "closed_unrecovered"}:
+        if existing.status not in {"recovered", "closed_unrecovered", "paid_original", "needs_reconciliation"}:
             existing.status = status
         if created_at is not None:
             existing.created_at = created_at

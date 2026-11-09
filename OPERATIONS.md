@@ -83,3 +83,24 @@ cover lock release after actual interpreter termination, stopping an owned neste
 process while leaving an unrelated process alive, restart-budget exhaustion,
 HTTP startup grace, busy ports, stale/PID-reused status, stop-request ownership,
 Test Mode refusal and schema-readiness refusal.
+
+## Original order success and duplicate collection
+
+Each known original provider order has one permanent recovery owner. Multiple
+already-acted legacy cases block new collection for investigation. A fresh order
+and payment-history read runs before scoring/execution and again before creating
+follow-up resources. Paid original orders settle as `paid_original`, expire pending
+reviews and do not create successful recovery outcomes or recovered-revenue credit.
+Pending/authorized, partial, refunded, inconsistent or unavailable evidence blocks
+new full-amount collection for reconciliation. Signed original-capture events use
+fresh provider evidence, not webhook amounts. Busy processing claims stay owned;
+a paid stop flag can be recorded without resetting that claim.
+
+If both the original order and a recovery resource are verified paid, the case is
+held for investigation and excluded from recovered-case totals. No automatic refund
+is issued. Operators can review/cancel an unpaid old recovery link for a directly
+paid closed case. Already shared links and separate provider orders cannot be made
+atomically exclusive with a local database lock. A customer can pay between the
+last provider read and a new creation, or through a previously shared link: monitor
+late captures and investigate duplicates. Distinct original orders for one merchant
+invoice still require explicit invoice mapping before live use.

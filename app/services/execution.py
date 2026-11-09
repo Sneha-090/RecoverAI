@@ -21,7 +21,7 @@ from app.services.reservations import reserve_recovery, finish_recovery, Recover
 from app.services.execution_records import record_execution, resolve_execution
 from app.services.escalation import expire_review_under_claim
 from app.services.payment_methods import alternate_methods, is_alt_method_eligible
-from app.services.original_orders import original_order_eligibility
+from app.services.original_orders import original_order_eligibility, verify_original_before_followup
 
 
 def _run_reserved(db, payment_id, operation, expected_state=None):
@@ -124,6 +124,9 @@ def _execute_action(db, payment) -> dict:
     if not eligible:
         _log_audit(db, payment.payment_id, 'original_order_blocked', reason)
         return {'chosen_action': None, 'decision_type': 'skip', 'reason': reason, 'executed': False}
+    original = verify_original_before_followup(db, payment)
+    if original:
+        return {**original, 'chosen_action': None, 'decision_type': 'skip', 'executed': False}
     # Also recognize work created before reservation tables were installed.
     pending = db.query(Action).filter_by(
         payment_id=payment.payment_id, decision_type=DecisionType.human_review,
@@ -191,6 +194,9 @@ def _execute_action(db, payment) -> dict:
             _log_audit(db, payment.payment_id, "alternate_method_blocked", reason)
             return {"chosen_action": None, "decision_type": "skip", "reason": reason, "executed": False}
 
+    original = verify_original_before_followup(db, payment)
+    if original:
+        return {**original, 'chosen_action': None, 'decision_type': 'skip', 'executed': False}
     payload, intent = _create_recovery_resource(db, payment, action_type)
 
     action_row = Action(
@@ -301,11 +307,14 @@ def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_i
 
 def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome", settle_only=False) -> dict:
     db.refresh(payment)
+    original = verify_original_before_followup(db, payment)
+    if original and original['status'] == 'needs_reconciliation':
+        return original
     if payment.status == "recovered":
         return {"status": "recovered"}
     latest = _get_last_execution_payload(db, payment.payment_id)
     if latest is None:
-        return {"status": "no_prior_execution", "reason": "No executed action found to observe"}
+        return original or {"status": "no_prior_execution", "reason": "No executed action found to observe"}
     execution, payload = resolve_execution(
         db, payment, expected_order_id, expected_payment_link_id,
     )
@@ -321,6 +330,8 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
     result = _check_real_outcome(payload)
     if settle_only and result != "success":
         return {"status": "needs_reconciliation", "reason": "Provider did not verify full recovery"}
+    if payment.status == "paid_original" and result != "success":
+        return {"status": "paid_original", "reason": "Original order already paid; no further action"}
     if result == "pending":
         return {"status": waiting_state, "reason": "Provider has not reported a terminal outcome"}
 
@@ -355,6 +366,14 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
         db.add(outcome_row)
         db.flush()
         db.add(ExecutionOutcome(execution_id=execution.id, outcome_id=outcome_row.id))
+    if payment.status == 'paid_original' and result == 'success':
+        outcome_row.observed_result = 'duplicate_payment'
+        payment.status = 'needs_reconciliation'
+        db.add(AuditLog(payment_id=payment.payment_id, event_type='duplicate_payment_detected',
+                        reason='Both original order and recovery resource were paid; no uplift credit or new collection',
+                        payload_json=json.dumps({'execution_id': execution.id, 'provider_id': execution.provider_id})))
+        db.commit()
+        return {'status': 'needs_reconciliation', 'reason': 'Possible duplicate collection requires operator investigation'}
     if outcome_row.observed_result == "success":
         result = "success"
     if result == "success":
@@ -382,6 +401,8 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
     # Keep ownership while advancing to the next action.
     next_decision = _execute_action(db, payment)
 
+    if next_decision.get('status') in {'paid_original', 'needs_reconciliation'}:
+        return next_decision
     if next_decision["decision_type"] == "skip":
         payment.status = "closed_unrecovered"
         db.commit()
@@ -463,6 +484,9 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
         if not eligible:
             return {"success": False, "status": "pending_review", "reason": reason}
 
+    original = verify_original_before_followup(db, payment)
+    if original:
+        return {**original, 'success': False}
     payload, intent = _create_recovery_resource(db, payment, chosen_action, human=True)
 
     new_action = Action(

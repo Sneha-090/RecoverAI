@@ -340,6 +340,12 @@ def process_verified_webhook(db, payload, razorpay_event_id):
                     correlation = {"expected_payment_link_id": "plink_" + payment_description.strip()[1:].strip()}
 
             if not original_payment_id:
+                from app.services.original_orders import observe_original_capture
+                direct = observe_original_capture(db, recovery_order_id, captured_payment_id)
+                if direct is not None:
+                    if direct['status'] == 'needs_reconciliation':
+                        receipt_state = 'needs_reconciliation'
+                    return direct
                 receipt_state = "waiting_for_execution"
                 return {
                     "status": "waiting_for_execution",

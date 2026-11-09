@@ -76,7 +76,7 @@ def test_error_reason_is_stored_in_payment(db_session, monkeypatch):
     assert payment.amount == 499.0
 
 
-@pytest.mark.parametrize("status", ["recovered", "closed_unrecovered"])
+@pytest.mark.parametrize("status", ["recovered", "closed_unrecovered", "paid_original", "needs_reconciliation"])
 def test_refetch_preserves_terminal_recovery_status(db_session, monkeypatch, status):
     payment = Payment(payment_id="pay_terminal", amount=499, status=status)
     db_session.add(payment)

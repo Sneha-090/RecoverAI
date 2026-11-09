@@ -7,6 +7,9 @@ from app.models.models import AuditLog, Payment
 
 
 EVENTS = {
+    'paid_original':('Paid at original checkout','Original payment verified; excluded from recovery revenue.'),
+    'duplicate_payment_detected':('Possible duplicate payment','Original and recovery captures require operator investigation.'),
+    'original_order_blocked':('Order follow-up blocked','Another case owns this original order or its collection is stopped.'),
     'old_link_cancelled':('Old checkout closed','An operator cancelled an unpaid link for a closed case.'),
     'old_link_unconfirmed':('Checkout cleanup needs verification','The provider cancellation result was not confirmed.'),
     'decision_features':('Model inputs recorded','Observed history and executed-attempt features were saved.'),

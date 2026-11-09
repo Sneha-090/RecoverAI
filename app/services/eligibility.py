@@ -18,7 +18,7 @@ NON_RETRYABLE_STATES = {
 }
 
 TERMINAL_RECOVERY_STATES = {
-    "captured", "authorized", "recovered", "closed_unrecovered",
+    "captured", "authorized", "recovered", "closed_unrecovered", "paid_original", "needs_reconciliation",
 }
 
 

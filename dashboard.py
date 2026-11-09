@@ -23,6 +23,7 @@ from app.models.models import (
     RecoveryScore,
     ReviewStatus,
     RecoveryReservation,
+    OriginalOrderRecovery,
 )
 from app.services.execution import human_review_action
 from app.ui.operator_login import require_dashboard_operator
@@ -85,6 +86,13 @@ st.caption(
 
 def get_recovery_order_info(payment_id: str):
     """Only the latest active checkout; never offer an earlier completed resource."""
+    payment = db.get(Payment, payment_id)
+    if not payment or payment.status != 'failed':
+        return None
+    if payment.order_id:
+        scope = db.get(OriginalOrderRecovery, payment.order_id)
+        if not scope or scope.state != 'active' or scope.payment_id != payment_id:
+            return None
     claim = db.get(RecoveryReservation, payment_id)
     if claim is None or claim.state != 'awaiting_outcome':
         return None
@@ -145,9 +153,9 @@ with tab_live:
         case_search = st.text_input('Search payment ID', max_chars=128, key='live_case_search')
     with status_column:
         case_status = st.selectbox('Case status',
-            ['All statuses','failed','recovered','closed_unrecovered','authorized','captured'], key='live_case_status')
+            ['All statuses','failed','recovered','paid_original','needs_reconciliation','closed_unrecovered','authorized','captured'], key='live_case_status')
     live_payments = find_live_cases(db,case_search,case_status)
-    st.caption('Showing up to 200 newest matching Test Mode cases. Headline totals cover all Test Mode cases.')
+    st.caption('Showing up to 200 newest matching Test Mode cases. paid_original means paid at the original checkout, excluded from recovered revenue. needs_reconciliation requires investigation; no new collection is allowed.')
 
     if not live_payments:
 
@@ -190,9 +198,13 @@ with tab_live:
                 .all()
             )
 
+            scope = db.get(OriginalOrderRecovery, payment.order_id) if payment.order_id else None
             rows.append(
                 {
                     "Payment ID": payment.payment_id,
+                    "Original order": payment.order_id or 'Not supplied',
+                    "Recovery owner": scope.payment_id or 'Investigation required' if scope else 'Not bound',
+                    "Original order state": scope.state if scope else 'Not bound',
                     "Amount (Rs)": payment.amount,
                     "Cause": (
                         diagnosis.cause
@@ -243,7 +255,7 @@ with tab_live:
 
             # Once the original case is recovered,
             # there is no reason to show another retry link.
-            if payment.status == "recovered":
+            if payment.status != "failed":
                 continue
 
             recovery = get_recovery_order_info(

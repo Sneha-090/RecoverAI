@@ -14,7 +14,7 @@ class CheckoutCleanupError(ValueError):
 
 def check_old_link(db,payment_id,execution_id):
     payment=db.get(Payment,payment_id);execution=db.get(RecoveryExecution,execution_id)
-    if (not payment or payment.status not in {'recovered','closed_unrecovered'} or not execution
+    if (not payment or payment.status not in {'recovered','closed_unrecovered','paid_original'} or not execution
             or execution.payment_id!=payment_id or execution.provider_type!='payment_link'):
         raise CheckoutCleanupError('Choose a recorded payment link belonging to a closed case.')
     resource=client.payment_link.fetch(execution.provider_id)
@@ -32,7 +32,7 @@ def cancel_old_link(db,payment_id,execution_id,operator):
     if not isinstance(operator,str) or not operator.strip() or len(operator)>64:
         return {'status':'blocked','message':'Authenticated operator required.'}
     payment=db.get(Payment,payment_id)
-    if not payment or payment.status not in {'recovered','closed_unrecovered'}:
+    if not payment or payment.status not in {'recovered','closed_unrecovered','paid_original'}:
         return {'status':'blocked','message':'Active cases cannot be cancelled through closed-case cleanup.'}
     owner=reserve_recovery(db,payment_id)
     if owner is None:

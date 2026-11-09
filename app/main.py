@@ -177,7 +177,9 @@ def checkout_config(order_id: Annotated[str, Query(pattern=ORDER_ID)]):
             execution = db.query(RecoveryExecution).filter_by(provider_type='order',provider_id=order_id).first()
             payment = db.get(Payment,execution.payment_id) if execution else None
             claim = db.get(RecoveryReservation,execution.payment_id) if execution else None
-            if not payment or payment.status!='failed' or not claim or claim.state!='awaiting_outcome':
+            from app.services.original_orders import original_order_eligibility
+            scope_active = payment is not None and original_order_eligibility(db, payment)[0]
+            if not payment or not scope_active or payment.status!='failed' or not claim or claim.state!='awaiting_outcome':
                 raise HTTPException(status_code=409,detail='This recovery checkout is no longer active; review the case in the dashboard')
     return {
         "key_id": settings.razorpay_key_id,
