@@ -1,6 +1,6 @@
 # RecoverAI: verified state and improvement plan
 
-Reviewed 7 November 2026. This is a repository review, not a production readiness
+Updated 9 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
 synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
 credentials, initialized database tables, and a completed provider-origin
@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  477 passing local tests including grouped model selection, matched policy evaluation, isolated demo reproducibility, operator controls and recovery safeguards.
+  495 passing local tests including process supervision, migrations, grouped model selection, matched policy evaluation, isolated demo reproducibility, operator controls and recovery safeguards.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -130,7 +130,7 @@ provider verification, and reviewed cleanup handles eligible old unpaid links.
 Partial/inconsistent payments block further full-amount collection for
 reconciliation. Provider connect/read timeouts are configured.
 Remaining: reviewed crash recovery, explicit fraud-stop/customer-opt-out rules
-and supervised worker restarts for continuous operation.
+and worker job-progress monitoring for continuous operation. Bounded local process supervision is now implemented; see OPERATIONS.md.
 
 ## Make the ML and business story defensible
 
@@ -177,14 +177,16 @@ have already been inspected and cannot serve as a fresh blind merchant audit.
 
 ### 6. Reliable setup and operations
 
-- Add tested dependency locks and database migrations for future schema changes.
+- Implemented: hash-checked Python 3.13 dependency locks, frozen Alembic baseline,
+  strict backed-up legacy adoption and internal readiness checks.
 - Implemented: a documented D drive Windows setup, private password reset,
   and separate local operator/webhook listeners.
 - Implemented: six repeatable offline scenarios using a fake provider, fresh
   DB, network guard and recorded HTML/JSON/Markdown replay; no merchant reset.
   The former live_demo command now defaults to this safe offline runner.
-- Add health/readiness checks, structured logs with sensitive-data redaction,
-  worker failure visibility, and a documented deployment configuration.
+- Implemented: one-command private Test Mode supervision, process status,
+  restart budgets and shutdown of owned process trees. Worker job-progress
+  heartbeats, centralized alerts, log retention and hosted deployment remain open.
 
 ### 7. Operator dashboard
 
@@ -209,26 +211,27 @@ have already been inspected and cannot serve as a fresh blind merchant audit.
 - A short demo video, architecture diagram, and interview walkthrough showing
   duplicate delivery, human review, pending payment, and verified recovery.
 
-## Wrap-up recommendation for prototype v1
+## Active direction: prepare a supervised single-merchant pilot
 
-Freeze feature development for the resume prototype. No production readiness
-claim is made. Latest code CI, saved model/report provenance, local API/dashboard
-health and worker readiness were checked; no active unresolved claim was present.
+Continue hardening the product rather than freezing feature development. The first
+recommended segment is a small online-course/adult skill-training business with
+one-time INR fees. See [pilot plan](PILOT_PLAN.md) for the scope, acceptance gates
+and measurements. No real merchant or approved live dataset is available yet.
 
-Before final demo sign-off:
+Next work in order:
 
-- [ ] Complete a fresh hosted Test Mode acceptance run for unknown-reason manual
-  review, explicit retry checkout, and alternate-method payment/attribution.
-  API configuration acceptance and automated tests are already verified; this
-  fresh browser/payment flow is still pending.
-- [ ] Record a short demonstration of the case timeline, review decision and
-  verified result. Existing HTML replay is recorded offline evidence.
-- [ ] Prepare two honest resume bullets and the interview explanation of claims,
-  concurrency, reconciliation, model evaluation and remaining limitations.
+- [ ] Bind recovery to the original order/merchant fee obligation, so multiple
+  failed payment IDs cannot independently collect the same fee. Stop recovery on
+  verified original-order success, and distinguish natural success in reporting.
+- [ ] Add merchant-approved invoice mapping and opt-out/cancellation/dispute rules.
+- [ ] Complete fresh hosted Test Mode retry, alternate-method and review acceptance.
+- [ ] Add job-progress monitoring, deployment alerts and a verified restore drill.
+- [ ] Select a willing merchant, validate the need and agree on a supervised pilot.
+- [ ] Deploy with reviewed HTTPS, access controls, operational ownership and budget.
 
-Further feature work is optional v2 work. Public/merchant deployment requires
-separately scoped hardening and approved outcome data; only Test Mode data is
-available now, as confirmed by the owner.
+Dependency locks, migration/readiness and the local supervisor are concrete
+hardening steps. They do not establish production readiness or live recovery uplift.
+Only Test Mode data is available; synthetic evidence remains labeled throughout.
 
 ## Resume claims supported today
 
@@ -239,7 +242,6 @@ its limitations. Do not describe synthetic revenue as merchant revenue, a test
 checkout as a production deployment, or probabilistic predictions as guaranteed
 recovery.
 
-Agreed prototype-evidence phase completed: matched benchmark, repeatable demo,
-architecture, current setup and supported claims. Next agreed phase is interview
-preparation using this implementation and its measured limitations. Production
-hardening and a real merchant pilot remain separately scoped work.
+The matched benchmark and repeatable demo remain useful evidence. Current work
+continues toward a supervised merchant pilot; interview preparation can use the
+verified implementation while these remaining product gaps are closed.

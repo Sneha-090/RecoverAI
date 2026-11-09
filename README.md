@@ -10,6 +10,10 @@ required, and verifies the result against the original recovery execution.
 Its strongest evidence is the recovery workflow and failure handling. It is not
 a production merchant deployment, an LLM assistant, or proof of revenue uplift.
 
+The next target is a supervised single-merchant pilot for an online-course or
+adult skill-training business. See the [pilot plan](PILOT_PLAN.md) for the
+recommended scope, remaining collection-safety gaps and success measurements.
+
 ## Evidence you can reproduce
 
 | Evidence | What it establishes | What it does not establish |
