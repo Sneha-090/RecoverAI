@@ -171,3 +171,53 @@ def reconcile_verified_success(db, payment_id, reference_key, operator_username,
         return {"status": "not_settled", "reason": "Verification could not complete. The case remains blocked; no new payment action was requested."}
     finally:
         finish_recovery(db, payment_id, owner, state)
+
+
+def return_verified_failure_to_review(db,payment_id,reference_key,operator_username):
+    """Re-read all known attempts under a reconciliation claim; create a review only."""
+    from app.config import settings
+    from app.services.original_orders import original_order_eligibility,read_original_order
+    from app.services.eligibility import is_recovery_eligible
+    if (not settings.razorpay_key_id.startswith('rzp_test_') or not isinstance(operator_username,str)
+            or not operator_username.strip() or len(operator_username)>64):
+        return {'status':'blocked','reason':'Authenticated Test Mode operator required'}
+    owner=uuid4().hex
+    changed=db.query(RecoveryReservation).filter_by(payment_id=payment_id,state='needs_reconciliation').update(
+        {'owner':owner,'state':'processing','updated_at':datetime.utcnow()})
+    db.commit()
+    if not changed:return {'status':'blocked','reason':'Case is active, already reviewed or not awaiting reconciliation'}
+    next_state='needs_reconciliation'
+    try:
+        db.expire_all()
+        payment,reference,provider_id=_reference(db,payment_id,reference_key)
+        if not isinstance(reference,RecoveryExecution):
+            raise ReconciliationError('Bind and verify uncertain creation intent before continuing')
+        if not is_recovery_eligible(payment)[0] or not original_order_eligibility(db,payment)[0]:
+            raise ReconciliationError('Case is stopped, closed or no longer eligible')
+        if db.query(RecoveryIntent).filter(RecoveryIntent.payment_id==payment_id,
+                RecoveryIntent.execution_id.is_(None),RecoveryIntent.state!='cancelled_before_creation').first():
+            raise ReconciliationError('Unresolved creation intent requires investigation')
+        executions=db.query(RecoveryExecution).filter_by(payment_id=payment_id).order_by(RecoveryExecution.id).all()
+        if not executions or len(executions)>10 or executions[-1].id!=reference.id:
+            raise ReconciliationError('Select the latest recorded execution; ambiguous history stays blocked')
+        if payment.order_id and read_original_order(payment)['status']!='open':
+            raise ReconciliationError('Original order is not verified open; no new recovery review')
+        for execution in executions:
+            evidence=check_reconciliation_status(db,payment_id,'execution:'+str(execution.id))
+            if evidence['result']!='failed':
+                raise ReconciliationError('Every existing execution must be verified failed; pending or paid resources stay blocked')
+        correlation={'expected_order_id' if reference.provider_type=='order' else 'expected_payment_link_id':provider_id}
+        result=_observe_outcome(db,payment,**correlation,settle_only=True,review_failed_only=True)
+        if result.get('status')!='pending_review':
+            return {'status':'blocked','reason':'Fresh provider evidence changed; investigate before continuing'}
+        db.add(AuditLog(payment_id=payment_id,event_type='failed_execution_reviewed',
+                        reason='Operator verified existing failures and returned the case to manual review; no provider creation',
+                        payload_json=json.dumps({'operator':operator_username,'execution_id':reference.id})))
+        db.commit();next_state='pending_review'
+        return result
+    except ReconciliationError as error:
+        db.rollback();return {'status':'blocked','reason':str(error)}
+    except Exception:
+        db.rollback();return {'status':'blocked','reason':'Verification unavailable or changed; case remains blocked and no new payment was requested'}
+    finally:
+        finish_recovery(db,payment_id,owner,next_state)

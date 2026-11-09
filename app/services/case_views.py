@@ -7,6 +7,8 @@ from app.models.models import AuditLog, Payment
 
 
 EVENTS = {
+    'recovery_blocked':('Verification needs investigation','Further recovery stopped until provider evidence can be verified.'),
+    'failed_execution_reviewed':('Failed execution verified','An operator returned verified failed attempts to manual review without another checkout.'),
     'followup_stopped':('Further recovery stopped','An operator recorded a persistent opt-out, cancellation or risk stop.'),
     'paid_original':('Paid at original checkout','Original payment verified; excluded from recovery revenue.'),
     'duplicate_payment_detected':('Possible duplicate payment','Original and recovery captures require operator investigation.'),

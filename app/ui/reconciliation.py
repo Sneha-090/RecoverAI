@@ -4,7 +4,7 @@ import streamlit as st
 
 from app.models.models import WebhookInbox
 from app.services.reconciliation import (list_stuck_cases, reconciliation_references,
-    check_reconciliation_status, reconcile_verified_success, ReconciliationError)
+    check_reconciliation_status, reconcile_verified_success, ReconciliationError, return_verified_failure_to_review)
 
 
 def render_reconciliation(db, operator_username):
@@ -69,6 +69,15 @@ def render_reconciliation(db, operator_username):
                         st.info("Payment is still pending. The case remains blocked.")
                     else:
                         st.warning("No successful recovery was found. The case remains blocked.")
+                    if evidence['result']=='failed':
+                        st.caption('Re-check all known executions and the original order, then return a verified failure to manual review. This control cannot create a checkout or authorize an automatic retry.')
+                        if st.button('Return verified failure to manual review',key='reconciliation_failed_review',disabled=active):
+                            result=return_verified_failure_to_review(db,payment_id,key,operator_username)
+                            st.session_state.pop('reconciliation_evidence',None)
+                            if result['status']=='pending_review':
+                                st.session_state['reconciliation_flash']='Verified failure recorded. Case returned to manual review; no new payment request was sent.'
+                                st.rerun()
+                            else:st.warning(result['reason'])
                     if st.button("Mark case recovered", key="reconciliation_settle", type="primary",
                                  disabled=active or not verified):
                         result = reconcile_verified_success(db, payment_id, key, operator_username, supplied)

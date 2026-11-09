@@ -181,3 +181,18 @@ embedded frame; the original and retry attempts were explicitly cancelled and th
 provider-reported failures were observed. Do not call those successful payments or
 claim a completed hosted retry capture. Use a browser supporting the provider's bank
 popup for that path; hosted payment links are a separate recovery action.
+
+## Return an existing failed attempt to review
+
+Recovery Review can re-check an existing failed execution and **Return verified
+failure to manual review**. Only a `needs_reconciliation` case can be claimed; an
+active processing claim cannot be reset. The original order must be open, the case
+eligible, all saved executions freshly failed, and no unresolved creation intent
+present. Only the latest execution can be selected. Paid, pending, partial,
+mismatched, stopped or ambiguous resources remain blocked.
+
+The control records the verified failure and creates a manual-assessment review,
+with operator audit. It never invokes ML selection or a provider creation endpoint.
+A separate approval must choose an untried eligible action. Competing operators
+create at most one review. General stale processing-claim crash recovery remains
+unsupported; this is not a force-retry or claim-expiry control.

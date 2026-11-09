@@ -344,3 +344,21 @@ def test_authenticated_dashboard_loads_test_checkout_without_second_login(review
     src=app.get('iframe')[0].proto.srcdoc
     assert 'order_TestPreview' in src and 'Start Test Mode payment' in src
     assert settings.operator_password_hash.get_secret_value() not in src
+
+
+def test_operator_can_return_verified_failed_execution_to_review_without_new_checkout(review_ui,monkeypatch):
+    add_case(review_ui)
+    monkeypatch.setattr('app.services.reconciliation.client.payment_link.fetch',lambda _: {
+        'id':'plink_ui','status':'cancelled','amount':49900,'amount_paid':0,'currency':'INR'})
+    create=Mock(side_effect=AssertionError('No new provider creation allowed'))
+    monkeypatch.setattr('app.services.execution.create_payment_link',create)
+    app=login(AppTest.from_string(REVIEW_APP).run())
+    app.button(key='reconciliation_check').click().run(timeout=20)
+    assert not app.exception
+    assert not app.button(key='reconciliation_failed_review').disabled
+    app.button(key='reconciliation_failed_review').click().run(timeout=20)
+    assert not app.exception
+    with review_ui() as db:
+        assert db.get(RecoveryReservation,'pay_ui').state=='pending_review'
+        assert db.query(Action).filter_by(payment_id='pay_ui',review_status='pending').one().action_type=='manual_assessment'
+    create.assert_not_called()

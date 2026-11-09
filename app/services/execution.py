@@ -45,6 +45,8 @@ def _run_reserved(db, payment_id, operation, expected_state=None):
             state = "pending_review"
         elif result.get("status") == "needs_reconciliation":
             state = "needs_reconciliation"
+            db.add(AuditLog(payment_id=payment_id, event_type='recovery_blocked',
+                            reason=result.get('reason') or 'Verification requires operator investigation'))
         finish_recovery(db, payment_id, owner, state)
         return result
     except FollowupStopped as error:
@@ -330,7 +332,7 @@ def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_i
     )
 
 
-def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome", settle_only=False) -> dict:
+def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome", settle_only=False, review_failed_only=False) -> dict:
     db.refresh(payment)
     original = verify_original_before_followup(db, payment, observation=True)
     if original and original['status'] == 'needs_reconciliation':
@@ -353,7 +355,7 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
                "expected_currency": execution.currency}
 
     result = _check_real_outcome(payload)
-    if settle_only and result != "success":
+    if settle_only and result != "success" and not (review_failed_only and result == "failed"):
         return {"status": "needs_reconciliation", "reason": "Provider did not verify full recovery"}
     if payment.status == "paid_original" and result != "success":
         return {"status": "paid_original", "reason": "Original order already paid; no further action"}
@@ -417,6 +419,19 @@ def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_
         return {"status": "recovered", "action_type": action.action_type, "execution_id": execution.id}
 
     db.commit()
+    if review_failed_only:
+        if result != 'failed' or historical:
+            return {'status': 'needs_reconciliation', 'reason': 'Only the latest verified failed execution can return to review'}
+        pending = db.query(Action).filter_by(payment_id=payment.payment_id, review_status=ReviewStatus.pending).first()
+        if pending is None:
+            now = datetime.utcnow()
+            db.add(Action(payment_id=payment.payment_id, action_type='manual_assessment',
+                          decision_type=DecisionType.human_review, review_status=ReviewStatus.pending,
+                          escalated_at=now, chosen_at=now,
+                          review_deadline=now+timedelta(hours=settings.human_review_timeout_hours),
+                          reason='Existing recovery failure verified by operator; choose an untried action. No automatic retry.'))
+            db.commit()
+        return {'status': 'pending_review', 'reason': 'Verified failed execution recorded; operator assessment required before any new collection'}
     if historical or already_observed or waiting_state == "pending_review":
         return {"status": "historical_outcome_observed" if payment.status == "closed_unrecovered" else waiting_state,
                 "reason": "Historical or already observed failure; no new action started"}
