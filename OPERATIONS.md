@@ -133,3 +133,26 @@ pending reviews expire. This control does not recall a shared checkout, cancel a
 provider resource or refund a payment. Review old unpaid links separately. There is
 no automatic resume or automated fraud detector. Non-failed pending/created/refunded
 payment states are also excluded from new recovery.
+
+## Repeatable backup restore drill
+
+```bat
+.venv\Scripts\python.exe -m scripts.verify_backup "path-to-a-verified-backup.sqlite"
+```
+
+Replace the quoted path with an actual backup under `D:\RecoverAI\var\backups`.
+The command opens the source read-only and creates a unique copy under ignored
+`var/restore_checks`. It checks integrity/references, upgrades that copy to the
+current reviewed schema and compares every original table's existing columns and
+records using counts and streamed digests. It verifies the source file is unchanged
+and writes a JSON report beside the retained copy. It never starts services or calls
+a provider, and never overwrites the configured merchant database or a prior drill.
+Unversioned baseline backups require explicit `--adopt-legacy`. A mismatch fails
+for investigation; no automatic replacement of the running database is attempted.
+A successful local drill does not replace protected off-device backups or a
+reviewed disaster-recovery procedure for hosted databases.
+
+On 9 November 2026 the existing D drive database reached revision 0003 with all
+three original case IDs, amounts and statuses retained. A real pre-upgrade local
+backup was restored into an isolated copy, upgraded and passed the record/source
+checks. The private report stays under `var/restore_checks`; no database is committed.

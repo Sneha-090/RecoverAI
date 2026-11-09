@@ -37,6 +37,14 @@ jobs:
         run: |
           python -m app.db.init_db
           python -m app.db.init_db --status
+      - name: Verify isolated SQLite backup restore
+        env:
+          RAZORPAY_KEY_ID: rzp_test_restore_ci
+          RAZORPAY_KEY_SECRET: restore_ci_fixture
+          RAZORPAY_WEBHOOK_SECRET: restore_ci_fixture
+        run: >-
+          python -m scripts.verify_backup "${{ runner.temp }}/migration-smoke.sqlite"
+          --output-root "${{ runner.temp }}/restore-drill"
       - name: Reproduce held-out synthetic ML evaluation
         run: >-
           python -m ML.train_model
@@ -63,3 +71,4 @@ jobs:
             ${{ runner.temp }}/evaluation.json
             ${{ runner.temp }}/policy-benchmark/
             ${{ runner.temp }}/offline-demo/
+            ${{ runner.temp }}/restore-drill/**/report.json
