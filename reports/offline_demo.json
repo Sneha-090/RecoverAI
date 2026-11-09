@@ -140,7 +140,7 @@
   "network_policy": "External sockets and HTTP blocked; local loopback IPC allowed for Windows asyncio",
   "demo_code_sha256": "1f010571f8c758355e77ab45f0705abd3c67ef8e52611cd8c47c7da66ffd8057",
   "source_fingerprints": {
-    "app/api/webhooks.py": "bec1aa18d1752b08881b1481bc682e4dae8135a1b8ed0372da8ea927dea75d76",
+    "app/api/webhooks.py": "588fc76457083ec362b41015191b6cbc7427ae582a6ef83e7a5bdf8ce7a2d669",
     "app/services/execution.py": "4d944e6ee7bb8f8cf540bb06ae78169d1f370f655559f770c7c00a3bf7fda10e",
     "app/services/policy.py": "d541009e4b80266fcf2f3d48a2ea91798517205355beabc5d418a3d21c11a1d0",
     "app/services/eligibility.py": "9bbb59fe6f4953c5a54f9e94a6a74210c71642f521725643b0e3e128cdc22f89",

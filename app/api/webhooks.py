@@ -25,10 +25,15 @@ from app.services.webhook_inbox import (
 )
 
 
+MAX_WEBHOOK_BODY_BYTES = 256 * 1024
+
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
 def verify_razorpay_signature(body: bytes, signature: str) -> bool:
+    if (not settings.razorpay_webhook_secret or not isinstance(signature, str)
+            or len(signature) != 64 or any(c not in '0123456789abcdef' for c in signature)):
+        return False
     expected = hmac.new(
         settings.razorpay_webhook_secret.encode("utf-8"),
         body,
@@ -209,7 +214,20 @@ async def razorpay_webhook(
             detail="Missing Razorpay webhook signature",
         )
 
-    body = await request.body()
+    declared = request.headers.get('content-length')
+    if declared is not None:
+        if not declared.isdecimal():
+            raise HTTPException(status_code=400, detail='Invalid webhook content length')
+        if len(declared) > 10 or int(declared) > MAX_WEBHOOK_BODY_BYTES:
+            raise HTTPException(status_code=413, detail='Webhook body exceeds the size limit')
+    chunks = []
+    size = 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_WEBHOOK_BODY_BYTES:
+            raise HTTPException(status_code=413, detail='Webhook body exceeds the size limit')
+        chunks.append(chunk)
+    body = b''.join(chunks)
 
     if not verify_razorpay_signature(
         body,
@@ -221,8 +239,8 @@ async def razorpay_webhook(
         )
 
     try:
-        payload = await request.json()
-    except (ValueError, UnicodeDecodeError) as exc:
+        payload = json.loads(body)
+    except (ValueError, UnicodeDecodeError, RecursionError) as exc:
         raise HTTPException(status_code=400, detail="Invalid webhook JSON") from exc
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Webhook must be a JSON object")

@@ -156,3 +156,10 @@ On 9 November 2026 the existing D drive database reached revision 0003 with all
 three original case IDs, amounts and statuses retained. A real pre-upgrade local
 backup was restored into an isolated copy, upgraded and passed the record/source
 checks. The private report stays under `var/restore_checks`; no database is committed.
+
+The public webhook route caps raw request bodies at 256 KiB, including streamed
+requests with no trusted Content-Length. Oversized input returns 413 before JSON,
+storage or provider calls; exact raw bytes still drive HMAC verification. Malformed
+signature headers, empty webhook secrets and deeply nested invalid JSON fail closed.
+This bounds individual request bodies; public deployment still needs upstream rate
+limits, connection/concurrency controls and monitoring.
