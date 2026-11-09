@@ -31,7 +31,7 @@ from app.ui.reconciliation import render_reconciliation
 from app.ui.policy_benchmark import render_policy_benchmark
 from app.ui.action_distribution import render_action_distribution
 from app.ui.checkout_maintenance import render_checkout_maintenance
-from app.services.action_reporting import build_action_report
+from app.services.order_reporting import build_order_summary
 from app.services.case_views import find_live_cases, case_timeline
 
 
@@ -55,18 +55,18 @@ db = SessionLocal()
 # TOP-LEVEL RECOVERY SNAPSHOT
 # =====================================================
 
-impact_snapshot = build_action_report(db, "Razorpay Test Mode")
+impact_snapshot = build_order_summary(db, "Razorpay Test Mode")
 
 kpi1, kpi2, kpi3 = st.columns(3)
 
 kpi1.metric(
-    "Razorpay Test Mode cases",
-    impact_snapshot["cases"],
+    "Test Mode orders / standalone cases",
+    impact_snapshot["tracked_groups"],
 )
 
 kpi2.metric(
-    "Recovered Test Mode cases",
-    impact_snapshot["recovered_cases"],
+    "Recovered Test Mode groups",
+    impact_snapshot["recovered_groups"],
 )
 
 kpi3.metric(
@@ -75,8 +75,12 @@ kpi3.metric(
 )
 
 st.caption(
-    "Razorpay Test Mode records only; no real merchant revenue is represented. "
-    "Synthetic results are in Case Simulation and Policy Benchmark."
+    f"{impact_snapshot['payment_attempts']} Test Mode payment attempts across "
+    f"{impact_snapshot['known_orders']} known orders and {impact_snapshot['standalone_payments']} unlinked payments. "
+    f"{impact_snapshot['paid_original_groups']} groups paid at the original checkout; "
+    f"{impact_snapshot['investigation_groups']} groups need investigation. Both are excluded from recovered revenue. "
+    "Multiple attempts for one order count once. Unlinked payments cannot be deduplicated across invoices. "
+    "No real merchant revenue is represented; synthetic results stay separate."
 )
 
 

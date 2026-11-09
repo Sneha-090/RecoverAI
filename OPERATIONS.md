@@ -110,3 +110,10 @@ boundary. Order/link creation also refuses non-test configuration before invokin
 the SDK. This applies when manually launching the API as well as using the local
 supervisor. Switching to Live Mode requires a deliberately reviewed implementation
 and merchant pilot approval; editing an environment key is insufficient.
+
+Dashboard headline amounts group known original-order attempts once. Direct original
+success and groups with conflicting amounts/owners, multiple recoveries or held
+duplicate payments are excluded from recovered totals. The Action Distribution
+view still counts individual payment cases and executions, with its unit stated.
+Payments without original-order references remain standalone: invoice-level
+uniqueness cannot be inferred from contacts or amounts.

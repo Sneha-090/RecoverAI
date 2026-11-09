@@ -34,7 +34,7 @@ def render_action_distribution(db):
                  column_config={'Share of first decisions': st.column_config.NumberColumn(format='percent')},
                  alt='First recorded decisions, their shares, executed actions and human-approved executions by action')
     st.caption('First decisions use the earliest recorded Action per case. Executions count auto records, including human-approved actions. '
-               'Execution totals can exceed case totals when a case progresses through different actions.')
+               'Execution totals can exceed case totals when a case progresses through different actions. These distributions count payment cases; headline revenue groups known original orders.')
     st.markdown('**First decisions by recorded failure cause**')
     st.dataframe(pd.DataFrame(snapshot['by_cause']), width='stretch', hide_index=True,
                  alt='Case counts and first recovery choices grouped by recorded failure cause')
