@@ -328,3 +328,19 @@ def test_dashboard_operator_can_record_stop_without_provider_request(review_ui,m
         p=db.get(Payment,'pay_stop_ui')
         assert p.recovery_stop_reason=='customer_opt_out' and p.status=='closed_unrecovered'
     create.assert_not_called()
+
+
+def test_authenticated_dashboard_loads_test_checkout_without_second_login(review_ui,monkeypatch):
+    fetch=Mock(return_value={'id':'order_TestPreview','amount':49900,'currency':'INR','status':'created',
+                             'amount_paid':0,'amount_due':49900,'attempts':0})
+    monkeypatch.setattr('app.services.operator_checkout.client.order.fetch',fetch)
+    app=login(AppTest.from_file(str(Path(__file__).resolve().parents[1]/'dashboard.py')).run(timeout=25))
+    fetch.assert_not_called()
+    app.text_input(key='operator_checkout_order').set_value('order_TestPreview')
+    app.button(key='operator_checkout_load').click().run(timeout=25)
+    assert not app.exception
+    fetch.assert_called_once_with('order_TestPreview')
+    assert len(app.get('iframe'))==1
+    src=app.get('iframe')[0].proto.srcdoc
+    assert 'order_TestPreview' in src and 'Start Test Mode payment' in src
+    assert settings.operator_password_hash.get_secret_value() not in src

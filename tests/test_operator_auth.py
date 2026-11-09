@@ -104,8 +104,16 @@ def test_authenticated_post_processes_requested_payment_and_closes_session(clien
 
 
 def test_checkout_uses_provider_amount_and_only_exposes_public_key(client, operator, monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from app.db.session import Base
+    from sqlalchemy.pool import StaticPool
+    engine=create_engine('sqlite:///:memory:',connect_args={'check_same_thread':False},poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr('app.main.SessionLocal',sessionmaker(bind=engine))
     monkeypatch.setattr("app.services.razorpay_client.client.order.fetch", lambda _: {
         "id": "order_test123", "amount": 49900, "currency": "INR",
+        "status":"created","amount_paid":0,"amount_due":49900,"attempts":0,
     })
     response = client.get("/checkout-config?order_id=order_test123&amount=1", auth=operator)
     assert response.status_code == 200

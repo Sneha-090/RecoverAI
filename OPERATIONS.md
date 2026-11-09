@@ -163,3 +163,21 @@ storage or provider calls; exact raw bytes still drive HMAC verification. Malfor
 signature headers, empty webhook secrets and deeply nested invalid JSON fail closed.
 This bounds individual request bodies; public deployment still needs upstream rate
 limits, connection/concurrency controls and monitoring.
+
+## Checkout from the existing dashboard session
+
+The authenticated dashboard's **Operator Test checkout** loads an existing Test
+order using the same server-side order/case/amount checks as the protected checkout
+configuration API. It avoids a second HTTP Basic login. Loading a preview performs
+provider reads only; no new order or payment is created. Only public key ID, order,
+amount and currency enter the frame, with escaped JSON, no-referrer, a short preview
+expiry and an explicit Test payment button. No credentials are copied into URLs or
+HTML. The independent operator API stays protected and the public gateway stays
+webhook-only.
+
+Already issued or opened provider checkouts cannot be atomically recalled by a local
+stop. In this in-app browser, the mock netbanking bank popup did not open from the
+embedded frame; the original and retry attempts were explicitly cancelled and their
+provider-reported failures were observed. Do not call those successful payments or
+claim a completed hosted retry capture. Use a browser supporting the provider's bank
+popup for that path; hosted payment links are a separate recovery action.

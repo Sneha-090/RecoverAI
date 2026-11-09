@@ -32,6 +32,7 @@ from app.ui.policy_benchmark import render_policy_benchmark
 from app.ui.action_distribution import render_action_distribution
 from app.ui.checkout_maintenance import render_checkout_maintenance
 from app.ui.recovery_stops import render_recovery_stop
+from app.ui.operator_checkout import render_operator_checkout
 from app.services.order_reporting import build_order_summary
 from app.services.case_views import find_live_cases, case_timeline
 
@@ -153,6 +154,7 @@ with tab_live:
         "Real Razorpay test-mode payments processed through RecoverAI."
     )
 
+    render_operator_checkout(db)
     render_recovery_stop(db, operator_username)
     search_column, status_column = st.columns([2,1])
     with search_column:
