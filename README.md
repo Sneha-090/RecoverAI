@@ -1,8 +1,8 @@
-# RecoverAI — Payment Recovery & Reconciliation Prototype
+# RecoverAI — Payment Recovery & Reconciliation
 
 [![Tests and ML evaluation](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml/badge.svg)](https://github.com/Sneha-090/RecoverAI/actions/workflows/tests.yml)
 
-RecoverAI is a Razorpay **Test Mode** prototype combining FastAPI, SQLAlchemy,
+RecoverAI is a payment-recovery application, currently verified in Razorpay **Test Mode**, combining FastAPI, SQLAlchemy,
 Streamlit, logistic regression and deterministic recovery policies. It handles
 failed-payment events, selects an intervention, requests human review when
 required, and verifies the result against the original recovery execution.
@@ -150,7 +150,19 @@ stamping/upgrading. Differing/unknown schemas stop for review. See
 [migration operations](migrations/README.md). Internal `/ready` returns 503 when
 the schema, operator setup or model artifact is not ready; `/health` is liveness.
 
-### Run local processes in separate terminals
+### Start the supervised local application
+
+```bat
+.venv\Scripts\python.exe -m scripts.run_local --check
+.venv\Scripts\python.exe -m scripts.run_local
+```
+
+This starts the API, dashboard, webhook gateway and three workers, with bounded
+restarts and owned-process shutdown. Use `--status` or `--stop` from another
+terminal. Stop old manual processes first. See [operations](OPERATIONS.md) for
+monitoring limits, shutdown and maintenance steps.
+
+### Manual alternative: separate terminals
 
 From the activated D drive environment:
 
