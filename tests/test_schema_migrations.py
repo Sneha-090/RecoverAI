@@ -12,7 +12,7 @@ from alembic import command
 def test_fresh_database_uses_revision_and_is_repeatable(tmp_path):
     engine=create_engine(f"sqlite:///{(tmp_path/'fresh.sqlite').as_posix()}")
     result=migrate_database(engine)
-    assert result=={'status':'upgraded','revision':'0002','backup_created':False}
+    assert result=={'status':'upgraded','revision':'0003','backup_created':False}
     assert schema_status(engine)['is_current']
     assert set(Base.metadata.tables).issubset(inspect(engine).get_table_names())
     assert migrate_database(engine)['status']=='current'

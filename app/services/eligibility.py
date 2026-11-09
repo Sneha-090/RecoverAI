@@ -24,11 +24,17 @@ TERMINAL_RECOVERY_STATES = {
 
 def is_recovery_eligible(payment) -> tuple[bool, str]:
     """Case-wide restrictions shared by every recovery action."""
+    if getattr(payment, 'recovery_stop_reason', None):
+        return False, 'recovery not attempted: operator-recorded stop is active'
     for field in ("status", "razorpay_state"):
         state = (getattr(payment, field, None) or "").strip().lower()
         if state in TERMINAL_RECOVERY_STATES:
             return False, f"recovery not attempted: {field} is '{state}'"
 
+    for field in ('status', 'razorpay_state'):
+        state = (getattr(payment, field, None) or '').strip().lower()
+        if state and state not in {'failed', 'halted'}:
+            return False, f"recovery not attempted: {field} is not a verified failed payment ('{state}')"
     created_at = payment.created_at
     if created_at is None:
         return False, "recovery not attempted: payment creation time is missing"

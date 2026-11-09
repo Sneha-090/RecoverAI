@@ -74,7 +74,7 @@ def unpersisted_recovery_intent(db, entity):
     Never turn an early failed recovery payment into a fresh recovery case.
     A lost creation response is deliberately not retried here.
     """
-    candidates = db.query(RecoveryIntent).filter(RecoveryIntent.execution_id.is_(None))
+    candidates = db.query(RecoveryIntent).filter(RecoveryIntent.execution_id.is_(None), RecoveryIntent.state != 'cancelled_before_creation')
     order_id = entity.get("order_id")
     description = entity.get("description")
     resources = []

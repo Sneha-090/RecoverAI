@@ -140,14 +140,14 @@ def settle_original_under_claim(db, payment, evidence):
             'reason': 'Original order is paid; no further recovery collection'}
 
 
-def verify_original_before_followup(db, payment):
+def verify_original_before_followup(db, payment, observation=False):
     """Caller owns the payment claim. None means verified open, with no side effect."""
     if not payment.order_id:
         return None
     eligible, reason = original_order_eligibility(db, payment)
     row = db.get(OriginalOrderRecovery, payment.order_id)
     # A delayed original-capture event can persist the stop flag before claiming settlement.
-    if not eligible and not (row.payment_id == payment.payment_id and row.state == 'paid_original'):
+    if not eligible and not (row.payment_id == payment.payment_id and (row.state == 'paid_original' or observation and row.state == 'operator_stopped')):
         return {'status': 'needs_reconciliation', 'reason': reason}
     try:
         evidence = read_original_order(payment)
@@ -155,7 +155,7 @@ def verify_original_before_followup(db, payment):
         return {'status': 'needs_reconciliation', 'reason': str(error)}
     if evidence['status'] == 'paid_original':
         return settle_original_under_claim(db, payment, evidence)
-    if row.state != 'active':
+    if row.state != 'active' and not (observation and row.state == 'operator_stopped'):
         return {'status': 'needs_reconciliation', 'reason': 'Original order stop flag requires investigation'}
     return None
 

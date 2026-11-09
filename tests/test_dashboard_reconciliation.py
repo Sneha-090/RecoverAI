@@ -312,3 +312,19 @@ def test_old_link_cancellation_requires_check_then_explicit_cancel(review_ui,mon
     app.button(key='cleanup_cancel_pay_cleanup_ui').click().run(timeout=25)
     assert not app.exception and cancel.call_count==1 and fetch.call_count==2
     assert app.button(key='cleanup_cancel_pay_cleanup_ui').disabled
+
+
+def test_dashboard_operator_can_record_stop_without_provider_request(review_ui,monkeypatch):
+    with review_ui() as db:
+        db.add(Payment(payment_id='pay_stop_ui',amount=499,status='failed'));db.commit()
+    create=Mock(side_effect=AssertionError('UI stop must not call provider'))
+    monkeypatch.setattr('app.services.execution.create_payment_link',create)
+    app=login(AppTest.from_file(str(Path(__file__).resolve().parents[1]/'dashboard.py')).run(timeout=25))
+    app.selectbox(key='stop_followup_reason').select('customer_opt_out')
+    app.button(key='stop_followup_submit').click().run(timeout=25)
+    assert not app.exception
+    assert any('Further recovery stopped' in item.value for item in app.info)
+    with review_ui() as db:
+        p=db.get(Payment,'pay_stop_ui')
+        assert p.recovery_stop_reason=='customer_opt_out' and p.status=='closed_unrecovered'
+    create.assert_not_called()

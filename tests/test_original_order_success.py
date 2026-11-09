@@ -203,3 +203,17 @@ def test_original_stop_flag_blocks_private_retry_checkout(scenario,monkeypatch):
             assert transport.get('/checkout-config?order_id=order_Retry').status_code==409
     finally:
         app.dependency_overrides.clear()
+
+
+def test_late_capture_still_observed_after_operator_stop(scenario,monkeypatch):
+    from app.services.recovery_stops import stop_followup
+    factory,state,provider=scenario
+    with factory() as db:
+        assert execute_action(db,db.get(Payment,'pay_failed'))['executed']
+        assert stop_followup(db,'pay_failed','operator','customer_opt_out')['status']=='stopped'
+        monkeypatch.setattr('app.services.execution.client.payment_link.fetch',lambda _: {
+            'id':'plink_followup','status':'paid','amount':49900,'amount_paid':49900,'currency':'INR'})
+        assert observe_outcome(db,db.get(Payment,'pay_failed'),expected_payment_link_id='plink_followup')['status']=='recovered'
+        assert db.get(Payment,'pay_failed').recovery_stop_reason=='customer_opt_out'
+        assert not execute_action(db,db.get(Payment,'pay_failed'))['executed']
+    assert provider.call_count==1

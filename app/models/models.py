@@ -36,6 +36,8 @@ class Payment(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     customer_id = Column(String, ForeignKey("customers.customer_id"), nullable=True)
+    recovery_stop_reason = Column(String, nullable=True)
+    recovery_stopped_at = Column(DateTime, nullable=True)
 
     diagnoses = relationship("Diagnosis", back_populates="payment")
     ml_predictions = relationship("MLPrediction", back_populates="payment")

@@ -31,6 +31,7 @@ from app.ui.reconciliation import render_reconciliation
 from app.ui.policy_benchmark import render_policy_benchmark
 from app.ui.action_distribution import render_action_distribution
 from app.ui.checkout_maintenance import render_checkout_maintenance
+from app.ui.recovery_stops import render_recovery_stop
 from app.services.order_reporting import build_order_summary
 from app.services.case_views import find_live_cases, case_timeline
 
@@ -91,7 +92,7 @@ st.caption(
 def get_recovery_order_info(payment_id: str):
     """Only the latest active checkout; never offer an earlier completed resource."""
     payment = db.get(Payment, payment_id)
-    if not payment or payment.status != 'failed':
+    if not payment or payment.status != 'failed' or payment.recovery_stop_reason:
         return None
     if payment.order_id:
         scope = db.get(OriginalOrderRecovery, payment.order_id)
@@ -152,6 +153,7 @@ with tab_live:
         "Real Razorpay test-mode payments processed through RecoverAI."
     )
 
+    render_recovery_stop(db, operator_username)
     search_column, status_column = st.columns([2,1])
     with search_column:
         case_search = st.text_input('Search payment ID', max_chars=128, key='live_case_search')
@@ -207,6 +209,7 @@ with tab_live:
                 {
                     "Payment ID": payment.payment_id,
                     "Original order": payment.order_id or 'Not supplied',
+                    "Recovery stop": payment.recovery_stop_reason or 'None',
                     "Recovery owner": scope.payment_id or 'Investigation required' if scope else 'Not bound',
                     "Original order state": scope.state if scope else 'Not bound',
                     "Amount (Rs)": payment.amount,
@@ -673,9 +676,9 @@ with tab_guardrails:
             True,
         ),
         (
-            "Fraud-flag immediate stop",
-            "NOT YET IMPLEMENTED",
-            False,
+            "Operator-recorded fraud concern stop",
+            "persistent stop; no automatic fraud detector",
+            True,
         ),
     ]
 

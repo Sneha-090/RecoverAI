@@ -44,3 +44,7 @@ already-acted cases for the same order become ambiguous and block new collection
 no action, execution or outcome is merged/deleted. Fresh competing failed attempts
 share one owner. Ownership is never reassigned merely because that case closes.
 An invoice spanning distinct provider orders still needs merchant-approved mapping.
+
+Revision 0003 adds nullable persistent operator-stop reason/timestamp columns to
+payments, retaining existing cases. Stops survive app/worker restarts. Downgrades
+refuse to discard stop history. Use reviewed backups rather than deleting flags.

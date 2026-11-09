@@ -117,3 +117,19 @@ duplicate payments are excluded from recovered totals. The Action Distribution
 view still counts individual payment cases and executions, with its unit stated.
 Payments without original-order references remain standalone: invoice-level
 uniqueness cannot be inferred from contacts or amounts.
+
+## Persistent operator stops
+
+The authenticated dashboard provides **Stop further recovery** for customer opt-out,
+merchant cancellation, fraud concern or an operator stop. A durable reason/timestamp
+is stored on all known payment attempts for that original order, with operator audit.
+The original-order owner remains bound. Repeating the request preserves the original
+stop reason. A separate request can still observe a late verified payment.
+
+A stop never steals a processing/reconciliation claim. If a request is already in
+flight it may finish; subsequent scoring/creation checks refresh the stop flag and
+block further collection. Waiting cases can close without an external request;
+pending reviews expire. This control does not recall a shared checkout, cancel a
+provider resource or refund a payment. Review old unpaid links separately. There is
+no automatic resume or automated fraud detector. Non-failed pending/created/refunded
+payment states are also excluded from new recovery.

@@ -24,6 +24,10 @@ from app.services.payment_methods import alternate_methods, is_alt_method_eligib
 from app.services.original_orders import original_order_eligibility, verify_original_before_followup
 
 
+class FollowupStopped(ValueError):
+    pass
+
+
 def _run_reserved(db, payment_id, operation, expected_state=None):
     owner = reserve_recovery(db, payment_id, expected_state)
     if owner is None:
@@ -43,6 +47,11 @@ def _run_reserved(db, payment_id, operation, expected_state=None):
             state = "needs_reconciliation"
         finish_recovery(db, payment_id, owner, state)
         return result
+    except FollowupStopped as error:
+        db.rollback()
+        finish_recovery(db, payment_id, owner)
+        return {'chosen_action': None, 'decision_type': 'skip', 'executed': False,
+                'success': False, 'status': 'followup_stopped', 'reason': str(error) or 'Operator-recorded stop prevents new collection'}
     except Exception:
         db.rollback()
         finish_recovery(db, payment_id, owner, "needs_reconciliation")
@@ -76,6 +85,10 @@ def _log_audit(db, payment_id, event_type, reason, payload=None, action=None, in
 
 
 def _create_recovery_resource(db, payment, action_type, human=False):
+    db.refresh(payment)
+    eligible, reason = is_recovery_eligible(payment)
+    if not eligible:
+        raise FollowupStopped(reason)
     eligible, reason = original_order_eligibility(db, payment)
     if not eligible:
         raise ValueError(reason)
@@ -84,6 +97,12 @@ def _create_recovery_resource(db, payment, action_type, human=False):
                             provider_type="order" if action_type == "retry" else "payment_link")
     db.add(intent)
     db.commit()  # Must precede the external request, even when its response is lost.
+    db.refresh(payment)
+    eligible, reason = is_recovery_eligible(payment)
+    if not eligible:
+        intent.state = 'cancelled_before_creation'
+        db.commit()
+        raise FollowupStopped(reason)
     if action_type == "retry":
         prefix = "human" if human else "retry"
         result = create_test_order(payment.amount, receipt=f"{prefix}_{payment.payment_id}_{datetime.utcnow().timestamp():.0f}",
@@ -124,6 +143,9 @@ def _execute_action(db, payment) -> dict:
     if not eligible:
         _log_audit(db, payment.payment_id, 'original_order_blocked', reason)
         return {'chosen_action': None, 'decision_type': 'skip', 'reason': reason, 'executed': False}
+    if payment.recovery_stop_reason:
+        _log_audit(db, payment.payment_id, 'skipped', 'Operator-recorded stop prevents follow-up')
+        return {'chosen_action': None, 'decision_type': 'skip', 'executed': False, 'reason': 'Operator-recorded stop prevents follow-up'}
     original = verify_original_before_followup(db, payment)
     if original:
         return {**original, 'chosen_action': None, 'decision_type': 'skip', 'executed': False}
@@ -175,6 +197,9 @@ def _execute_action(db, payment) -> dict:
         _log_audit(db, payment.payment_id, "escalated", decision["reason"], payload={"review_deadline": deadline.isoformat()})
         return {**decision, "executed": False, "review_deadline": deadline.isoformat()}
 
+    db.refresh(payment)
+    if payment.recovery_stop_reason:
+        raise FollowupStopped()
     action_type = decision["chosen_action"]
 
     if action_type == "retry":
@@ -307,7 +332,7 @@ def observe_outcome(db, payment, expected_order_id=None, expected_payment_link_i
 
 def _observe_outcome(db, payment, expected_order_id=None, expected_payment_link_id=None, waiting_state="awaiting_outcome", settle_only=False) -> dict:
     db.refresh(payment)
-    original = verify_original_before_followup(db, payment)
+    original = verify_original_before_followup(db, payment, observation=True)
     if original and original['status'] == 'needs_reconciliation':
         return original
     if payment.status == "recovered":
@@ -484,6 +509,9 @@ def _human_review_action(db, payment_id: str, chosen_action: str) -> dict:
         if not eligible:
             return {"success": False, "status": "pending_review", "reason": reason}
 
+    db.refresh(payment)
+    if payment.recovery_stop_reason:
+        raise FollowupStopped()
     original = verify_original_before_followup(db, payment)
     if original:
         return {**original, 'success': False}
