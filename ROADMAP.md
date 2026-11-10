@@ -50,9 +50,11 @@ Unauthorized access and invalid inputs are covered by API tests. Dashboard tests
 exercise hidden content, rejected login, successful login/logout, session expiry,
 and credential rotation. A hosted Razorpay Test Mode checkout completed the
 recovery flow, and the owner completed dashboard login. The fresh retry attempt
-was verified failed after explicit cancellation, and its reviewed failure was returned to manual review without creating another checkout.
-The separately approved alternate-method link visually excluded netbanking but
-remains unpaid; a completed capture for these upgraded flows remains outstanding.
+was verified failed after explicit cancellation, and its reviewed failure returned
+to manual review without another checkout. The separately approved alternate link
+excluded netbanking and was paid by card in Test Mode on 10 November. Its exact
+execution was reconciled, with no duplicate outcome after capture-event replay.
+A fresh successful retry popup flow remains outstanding.
 This single-operator implementation still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
@@ -232,8 +234,9 @@ Next work in order:
 - [x] Restore an actual backup into an isolated upgraded copy with record checks.
 - [x] Verify fresh failed retry, explicit failure-to-review and separate alternate
   approval. Show only the actual approved action and its exact audit resource.
-- [ ] Complete a fresh successful hosted retry and alternate-method capture. The
-  latest alternate-method link remains unpaid; no new capture is claimed.
+- [x] Verify a fresh alternate-method capture, reviewed settlement and processed
+  signed capture event. Test totals are three recovered orders / INR 1,497.
+- [ ] Complete a fresh successful hosted retry popup flow in a supported browser.
 - [ ] Add merchant-approved invoice mapping across distinct original orders and
   agreed consent/refund/dispute workflows.
 - [ ] Add job-progress monitoring, deployment alerts and hosted recovery procedures.

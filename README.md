@@ -20,7 +20,7 @@ recommended scope, remaining collection-safety gaps and success measurements.
 | --- | --- | --- |
 | [Matched policy benchmark](reports/POLICY_BENCHMARK.md) | Policy comparison on identical held-out synthetic contexts, costs and outcome labels | Real merchant ROI or ML superiority |
 | [Offline walkthrough](reports/OFFLINE_DEMO.md) / [interactive replay](reports/offline_demo.html) | Real service behavior under six controlled scenarios with a fake provider | A new live provider test |
-| [Razorpay verification record](TEST_MODE_VERIFICATION.md) | Two historical hosted Test Mode recoveries; fresh failed retry, reviewed return and unpaid alternate checkout checks | Real-money recovery or production readiness |
+| [Razorpay verification record](TEST_MODE_VERIFICATION.md) | Three verified Test Mode recoveries, including a fresh manual-review alternate-method capture and reviewed settlement | Real-money recovery or production readiness |
 | Automated tests and CI | Regression coverage for authentication, concurrency, eligibility and recovery state | Complete correctness under every production failure |
 
 ### Benchmark result, including the limitation
@@ -100,8 +100,9 @@ invoice identical or eliminate external payment races.
 
 The current local suite passes **604 tests**. Versioned migrations, an isolated
 backup restore drill, bounded webhook input and private service supervision are
-implemented. A new successful hosted retry/alternate capture and a real merchant
-pilot remain outstanding. See [verification](TEST_MODE_VERIFICATION.md),
+implemented. A fresh alternate-method payment was captured and reconciled on
+10 November; the successful retry popup path and a real merchant pilot remain
+outstanding. See [verification](TEST_MODE_VERIFICATION.md),
 [operations](OPERATIONS.md) and [architecture](ARCHITECTURE.md).
 
 ## Fresh Windows setup

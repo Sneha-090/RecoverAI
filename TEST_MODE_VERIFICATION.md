@@ -203,12 +203,12 @@ A separate explicit approval selected `alt_method`, creating
 visibly offered Cards and Wallet, with netbanking absent. This establishes visual
 method exclusion, not a completed alternate-method payment or UPI availability.
 
-On 10 November, a fresh SDK read still showed that link `created`, INR 499 due
+At an earlier 10 November checkpoint, an SDK read showed the link `created`, INR 499 due
 and zero paid. Both original/retry orders were `attempted`, zero paid. The local
 case was held in `needs_reconciliation`; no claim was forced or new resource
-created to bypass that state. There are four local cases, two historical recovered
-cases and INR 998 historical Test Mode recovery. The new case is not counted as
-recovered. Browser automation is presently unavailable due to a runtime ownership
+created to bypass that state. At that checkpoint there were four local cases,
+two recovered cases and INR 998 Test Mode recovery; the new case was not yet
+recovered. Browser automation was unavailable due to a runtime ownership
 error; an earlier native Cards click was rejected by automatic approval review
 because the target was the ChatGPT window rather than an identified checkout.
 No browser-payment success is claimed.
@@ -234,3 +234,44 @@ public docs, configuration, checkout and readiness paths returned 404. A fresh
 oversized public request encountered a connection reset before a response could
 be observed, so no new public HTTP 413 result is claimed. The body-limit regression
 suite passed as part of the 604-test local run.
+
+
+## 10 November: alternate-method capture and reviewed settlement completed
+
+This supersedes the earlier unpaid-link checkpoint above. The owner completed
+Cards and the mock Success step on the existing Test link. Fresh provider reads
+confirmed `plink_Ty6mI38swZvUFp` is paid, amount INR 499.00, amount_paid 49,900 paise,
+currency INR. Payment `pay_TyJMPHDeiTY6Ha` is captured for 49,900 paise by `card`,
+different from the excluded original failed method `netbanking`. No new checkout
+resource was created to complete this acceptance check.
+
+The case was still held in `needs_reconciliation`. The existing reviewed-success
+service re-fetched provider evidence under its exclusive reconciliation claim and
+verified the original order, exact execution amount/currency and alternate captured
+method. It settled execution 3 on original case `pay_Ty6QWwHiy3qICK` as recovered,
+recorded one attributed `alt_method` success outcome, released the claim and left
+zero pending reviews. The earlier retry outcome remains failed. This is reviewed
+settlement, not a claim that the held case auto-settled on webhook delivery.
+
+The signed capture event `TyJMfHZoOBpWxT` reached the verified inbox. It was retryable
+while the case was blocked. After settlement it was processed (attempt 7).
+The saved record does not distinguish worker replay from provider redelivery.
+By the time an explicit targeted replay check ran, it selected zero events. Repeating that check also selected zero: executions stayed two and outcomes
+two (one failed retry, one successful alternate), with no added recovery resource
+or duplicated outcome. No held/active claim was forcibly reset.
+
+Order-level Test Mode reporting now shows four tracked original orders, three
+recovered groups and INR 1,497.00 recovered amount, with no investigation group.
+These are simulated provider transactions, not merchant revenue. The browser
+clicks were performed by the owner; backend/provider verification and reviewed
+settlement were performed by the assistant on the owner's behalf. Browser
+automation remained unavailable. A successful fresh retry/mock-bank popup flow
+and real merchant validation remain outstanding.
+
+
+The relevant reconciliation, inbox, reporting, execution and webhook regression
+suites passed **112 tests** after this acceptance check. The application code
+remains the same version covered by the full 604-test run; only documentation
+was updated for the new provider-origin Test evidence. A sanitized private JSON
+snapshot is retained under ignored D-drive `var/acceptance-capture-20261110.json`;
+no contacts, credentials or database files are committed.

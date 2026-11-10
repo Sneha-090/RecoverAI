@@ -39,9 +39,10 @@ operator instead of another automatic full-amount request.
    This is not automated dispute resolution, fraud detection or refund processing.
 3. Fresh hosted Test Mode acceptance of retry, alternative method and manual review;
    complete event delivery, exact attribution and unpaid-link cleanup checks.
-   Fresh failure-to-review and alternate approval were exercised; the alternate
-   page hid the failed netbanking method but remains unpaid. Successful captures
-   for the upgraded retry/alternate paths are still outstanding.
+   Fresh failure-to-review, alternate approval and a full INR 499 card capture
+   were verified. The failed netbanking method was excluded, the exact alternate
+   execution settled, and capture replay added no duplicate outcome. A successful
+   hosted retry popup flow remains outstanding. All are Test Mode checks.
 4. Reviewed HTTPS deployment, authenticated operator access with rate limiting,
    owned worker restarts, job-progress monitoring, alerts and tested backup restore.
    An isolated restore of an actual backup passed migration and record checks.
