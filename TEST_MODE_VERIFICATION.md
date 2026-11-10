@@ -169,3 +169,68 @@ Only Test Mode/synthetic data is available, as confirmed by the owner. Real
 merchant validation remains out of scope until approved anonymised outcomes
 exist; see [the validation plan](data/MERCHANT_DATA_GUIDE.md). GitHub CI is checked
 per final commit; this local test count is not substituted for the cloud result.
+
+
+## 9–10 November hardening and fresh walkthrough
+
+The local database was upgraded through Alembic 0003 after verified backups,
+retaining the three prior cases and both historically recovered Test Mode cases.
+An actual backup was restored into a unique isolated copy, upgraded and checked
+for integrity, references, preservation of original records and unchanged source.
+No configured merchant database was overwritten by the restore drill.
+
+New regressions cover permanent original-order ownership, competing same-order
+attempts, original-checkout success without recovery credit, duplicate/partial
+payments, persistent operator stops, order-level totals, Test-only provider
+transport and the 256 KiB raw webhook limit. The authenticated dashboard checkout
+uses the existing operator session while the independent API stays protected.
+
+A fresh INR 499 original Test order (`order_Ty6BG6pNV8yply`) was attempted.
+The embedded in-app browser did not open the mock netbanking popup. Explicit
+cancellation produced provider-verified failed payment `pay_Ty6QWwHiy3qICK`.
+The signed failure was processed and `customer_cancelled` required manual
+assessment, without an automatic ML recommendation. Explicit operator approval
+created retry order `order_Ty6X9VN9KGm2YU`. Its attempted payment
+`pay_Ty6a8tlq2muz2c` was also explicitly cancelled and verified failed.
+Neither attempt is a successful capture.
+
+The case was held for reconciliation. Its initial blocking reason was not
+persisted; a particular timeout cause is not established. The new reviewed-failure
+control freshly checked the original and existing execution, recorded the failed
+retry outcome and returned the case to manual review without creating a resource.
+A separate explicit approval selected `alt_method`, creating
+`plink_Ty6mI38swZvUFp` with the failed netbanking method excluded. The hosted page
+visibly offered Cards and Wallet, with netbanking absent. This establishes visual
+method exclusion, not a completed alternate-method payment or UPI availability.
+
+On 10 November, a fresh SDK read still showed that link `created`, INR 499 due
+and zero paid. Both original/retry orders were `attempted`, zero paid. The local
+case was held in `needs_reconciliation`; no claim was forced or new resource
+created to bypass that state. There are four local cases, two historical recovered
+cases and INR 998 historical Test Mode recovery. The new case is not counted as
+recovered. Browser automation is presently unavailable due to a runtime ownership
+error; an earlier native Cards click was rejected by automatic approval review
+because the target was the ChatGPT window rather than an identified checkout.
+No browser-payment success is claimed.
+
+Approval history now displays the executed override (`retry`/`alt_method`) and
+its exact bound audit rather than the original `manual_assessment` recommendation
+or the most recent unrelated resource. An authenticated AppTest covers two
+approvals on one case and an unbound legacy action.
+
+The final local regression suite passed **604 tests** on 10 November. GitHub
+Actions passed for `3a1c6c8` (run 42633939575); later commits have separate results.
+After finding the prior local supervisor stopped, the six private services were
+restarted from D drive. API readiness and dashboard health returned 200, anonymous
+checkout 401, and gateway docs/checkout/config/readiness paths 404. The removed
+experimental checkout-result route returned 404. Worker checks report process
+liveness, not completed-job heartbeats. These local checks do not establish a
+hosted deployment, live collection, merchant ROI or successful new bank capture.
+
+
+The previously authorized ngrok endpoint was restored to the webhook-only
+127.0.0.1:8002 upstream. A signed harmless connection check returned 200 ignored;
+public docs, configuration, checkout and readiness paths returned 404. A fresh
+oversized public request encountered a connection reset before a response could
+be observed, so no new public HTTP 413 result is claimed. The body-limit regression
+suite passed as part of the 604-test local run.

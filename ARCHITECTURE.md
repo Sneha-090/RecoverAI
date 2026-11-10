@@ -1,7 +1,7 @@
 # Architecture and evidence contract
 
-RecoverAI is a Test Mode recovery prototype. The classifier is logistic
-regression; diagnosis, eligibility, scoring and workflow transitions are
+RecoverAI is a payment-recovery application verified in Razorpay Test Mode.
+The classifier is logistic regression; diagnosis, eligibility, scoring and workflow transitions are
 explicit Python rules. No LLM, autonomous coding agent or production merchant
 revenue claim is part of this implementation.
 
@@ -15,6 +15,10 @@ revenue claim is part of this implementation.
 | Model probabilities and shared pure selection | `app/services/ml_service.py`, `policy.py`, `decision.py` |
 | Case/retry eligibility and exact money conversion | `app/services/eligibility.py`, `money.py` |
 | Automatic and human-approved execution | `app/services/execution.py`, `order_service.py` |
+| Original-order ownership, natural success and grouped reporting | `original_orders.py`, `order_reporting.py` |
+| Persistent operator opt-out/cancellation/risk stops | `recovery_stops.py`, `app/ui/recovery_stops.py` |
+| Authenticated dashboard checkout preview | `operator_checkout.py`, `app/ui/operator_checkout.py` |
+| Versioned migrations, isolated restore and local supervision | `migrations/`, `scripts/verify_backup.py`, `scripts/run_local.py` |
 | Durable claims and execution attribution | `reservations.py`, `execution_records.py`, `app/models/models.py` |
 | Early-event storage and bounded replay | `webhook_inbox.py`, `webhook_replay.py`, `scripts/replay_webhooks.py` |
 | Reviewed settlement of verified success | `app/services/reconciliation.py`, `app/ui/reconciliation.py` |
@@ -73,7 +77,7 @@ Recommendations do not consume executed-retry budgets or cooling-off time.
 Automatic and human decisions exclude an action type once it has been executed.
 
 Created requests and execution expectations use integer paise. SQLite Payment
-amounts remain rupee display values; this prototype is not an accounting ledger.
+amounts remain rupee display values; this application is not an accounting ledger.
 
 A late success updates the earlier execution's failed result and settles the
 original case. It does not rewrite a newer execution's result. Pending reviews
@@ -104,8 +108,12 @@ an existing provider ID can be supplied; its notes must match the intent.
 Checks read the provider and compare ID, amount, currency and full payment.
 Settlement re-fetches evidence under an exclusive reconciliation claim.
 
-Only verified success settles a case. Failed/pending/unavailable/mismatched
-results stay blocked and cannot trigger another external action. Processing
+Only verified success settles a case. A separate reviewed-failure control re-reads
+all known executions and the original order under the reconciliation claim. If
+all executions are failed and the case is eligible, it records the failed outcome
+and creates a manual-assessment review. It cannot call a creation endpoint;
+a separate approval must select an untried eligible action. Pending, paid, partial,
+unavailable or mismatched evidence remains blocked. Processing
 claims, ambiguous history and uncertain webhooks are not forcibly reset.
 Successful settlement records the operator in audit. It does not automatically
 replay a held webhook or cancel another resource.
@@ -149,9 +157,11 @@ the legacy `scripts.live_demo` entry point now uses this safe runner.
 
 ## Operational limits
 
-Workers must be running and supervised for continuous operation. Startup-service
-registration, lease-based crash recovery, versioned migrations, dependency locks
-and a real merchant pilot remain separate work. Pending-outcome polling now uses
+Workers must be running and supervised for continuous operation. Dependency locks,
+Alembic migrations through 0003, readiness checks, bounded local supervision and
+isolated backup restore verification are implemented. Startup-service registration,
+reviewed crash recovery, job-progress heartbeats, alerts and a real merchant pilot
+remain separate work. Pending-outcome polling now uses
 the normal claim/verification path. Closed-case unpaid links have explicit,
 Test Mode-only reviewed cleanup; paid/partial resources are never cancelled.
 Partial recovery payments block another full-amount collection for reconciliation. Operator APIs/dashboard need deployment controls
@@ -175,3 +185,36 @@ Alternate-method checkout hides the original failed method and verifies captured
 method; retry is an explicit fresh checkout, never an automatic debit. Private
 checkout refuses inactive recovery orders. Cleanup of hosted links is separate
 from success settlement and cannot eliminate every external payment race.
+
+
+## Original-order safety and durable stops
+
+Each known original Razorpay order has one permanent canonical recovery owner.
+Multiple already-worked legacy owners are ambiguous and block new collection.
+Fresh original-order/payment-history checks precede follow-up creation. Original
+checkout success becomes `paid_original`, stops follow-up and is excluded from
+recovery credit. Original plus recovery captures require duplicate investigation.
+Dashboard headline totals count each known order once, excluding ambiguous groups.
+Distinct provider orders for one merchant invoice need explicit merchant mapping.
+
+Durable operator stops propagate across known same-order attempts and are checked
+again before creation. Processing claims are never stolen. An in-flight request
+may finish; a local stop cannot recall an externally shared checkout. Late verified
+payments can still be observed. No automatic resume, refund or fraud detection is
+provided.
+
+## Boundaries and operational verification
+
+Provider transport and creation paths reject non-Test Mode configuration. The
+public signed-event endpoint caps exact raw bodies at 256 KiB before storage;
+HMAC still uses the unmodified bytes. Public HTTPS/rate limits and monitoring
+remain deployment requirements.
+
+Backup verification reads the source without modification, migrates a unique
+isolated copy, and compares original records and source digest. CI retains only
+the report, never a database. An actual local backup passed the drill.
+
+Dashboard approval history reads executed Action rows and the exact
+RecoveryExecution-to-audit binding. The original manual recommendation is not
+presented as the approved choice. Unbound legacy history is labeled unavailable
+rather than borrowing another approval's provider resource.

@@ -29,14 +29,22 @@ operator instead of another automatic full-amount request.
 1. **Underlying fee/order ownership:** multiple failed payment attempts for the
    same original order must not create independent recovery requests. An original
    order that later succeeds must stop recovery, and natural checkout success must
-   not be counted as ML-attributed recovered revenue. This is an open engineering
-   gap; current claims primarily protect one original payment ID.
-2. Merchant-approved invoice mapping, consent/opt-out, cancellation/refund/dispute
-   exclusions, and a reviewed route for partial or duplicate payments.
+   not be counted as ML-attributed recovered revenue. Implemented and regression
+   tested for known provider original orders, with fresh provider checks. Distinct
+   original orders for one fee still need explicit merchant invoice mapping;
+   external checkout races cannot be eliminated by database claims.
+2. Merchant-approved invoice mapping, consent/contact policy and refund/dispute
+   handling. Durable opt-out/cancellation/fraud/operator stops are implemented;
+   partial, ambiguous and duplicate payments block collection for investigation.
+   This is not automated dispute resolution, fraud detection or refund processing.
 3. Fresh hosted Test Mode acceptance of retry, alternative method and manual review;
    complete event delivery, exact attribution and unpaid-link cleanup checks.
+   Fresh failure-to-review and alternate approval were exercised; the alternate
+   page hid the failed netbanking method but remains unpaid. Successful captures
+   for the upgraded retry/alternate paths are still outstanding.
 4. Reviewed HTTPS deployment, authenticated operator access with rate limiting,
    owned worker restarts, job-progress monitoring, alerts and tested backup restore.
+   An isolated restore of an actual backup passed migration and record checks.
    The local supervisor is an operations improvement, not a hosted deployment.
 5. Written merchant authorization, restricted data access/retention, approved live
    credentials and explicit approval to begin real collection. Nothing here enables

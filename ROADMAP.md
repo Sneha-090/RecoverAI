@@ -1,6 +1,6 @@
 # RecoverAI: verified state and improvement plan
 
-Updated 9 November 2026. This is a repository review, not a production readiness
+Updated 10 November 2026. This is a repository review, not a production readiness
 certification. The available implementation uses Razorpay Test Mode and
 synthetic ML data. The fresh `D:\RecoverAI` installation has verified test-mode
 credentials, initialized database tables, and a completed provider-origin
@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  495 passing local tests including process supervision, migrations, grouped model selection, matched policy evaluation, isolated demo reproducibility, operator controls and recovery safeguards.
+  604 passing local tests, including original-order ownership, persistent stops, isolated backup restore, bounded webhooks, authenticated checkout and exact approval-history attribution.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -49,9 +49,11 @@ credentials are not embedded in its source. Signed webhooks remain separate.
 Unauthorized access and invalid inputs are covered by API tests. Dashboard tests
 exercise hidden content, rejected login, successful login/logout, session expiry,
 and credential rotation. A hosted Razorpay Test Mode checkout completed the
-recovery flow, and the owner completed dashboard login. The upgraded retry and
-alternate-method hosted flows still need a fresh configured manual acceptance test. This single-operator implementation
-still needs HTTPS and external rate limiting before public deployment; future
+recovery flow, and the owner completed dashboard login. The fresh retry attempt
+was verified failed after explicit cancellation, and its reviewed failure was returned to manual review without creating another checkout.
+The separately approved alternate-method link visually excluded netbanking but
+remains unpaid; a completed capture for these upgraded flows remains outstanding.
+This single-operator implementation still needs HTTPS and external rate limiting before public deployment; future
 multi-operator roles and identity-provider integration remain separate work.
 
 ### 2. Exact attribution and reviewed success reconciliation (implemented)
@@ -89,7 +91,9 @@ cases and held webhook events. Provider checks are explicit and read-only.
 Verified existing executions, or an intent with matching provider notes, ID,
 amount and currency, can settle a blocked case after a fresh provider check.
 Settlement claims only `needs_reconciliation`, records the operator in audit,
-and cannot create a new order/link or advance a failed/pending attempt. Lost
+and cannot create a new order/link. A separate reviewed-failure control can return
+only freshly verified failed executions to explicit manual review; pending/paid
+resources remain blocked. Lost
 responses can be matched to an operator-supplied existing provider resource;
 ambiguous action history stays blocked. Competing reconcilers settle once.
 
@@ -129,8 +133,10 @@ Implemented: bounded pending-outcome polling uses the same case claims and
 provider verification, and reviewed cleanup handles eligible old unpaid links.
 Partial/inconsistent payments block further full-amount collection for
 reconciliation. Provider connect/read timeouts are configured.
-Remaining: reviewed crash recovery, explicit fraud-stop/customer-opt-out rules
-and worker job-progress monitoring for continuous operation. Bounded local process supervision is now implemented; see OPERATIONS.md.
+Implemented: persistent customer-opt-out, merchant-cancellation, fraud-concern and
+operator-stop controls across known same-order attempts. These do not recall an
+already shared link or constitute automatic fraud detection. Remaining: reviewed
+crash recovery and worker job-progress monitoring. See OPERATIONS.md.
 
 ## Make the ML and business story defensible
 
@@ -220,12 +226,17 @@ and measurements. No real merchant or approved live dataset is available yet.
 
 Next work in order:
 
-- [ ] Bind recovery to the original order/merchant fee obligation, so multiple
-  failed payment IDs cannot independently collect the same fee. Stop recovery on
-  verified original-order success, and distinguish natural success in reporting.
-- [ ] Add merchant-approved invoice mapping and opt-out/cancellation/dispute rules.
-- [ ] Complete fresh hosted Test Mode retry, alternate-method and review acceptance.
-- [ ] Add job-progress monitoring, deployment alerts and a verified restore drill.
+- [x] Bind known original provider orders to one permanent recovery owner; stop on
+  verified original-order success and exclude it from recovered revenue.
+- [x] Persist operator opt-out/cancellation/fraud stops across same-order attempts.
+- [x] Restore an actual backup into an isolated upgraded copy with record checks.
+- [x] Verify fresh failed retry, explicit failure-to-review and separate alternate
+  approval. Show only the actual approved action and its exact audit resource.
+- [ ] Complete a fresh successful hosted retry and alternate-method capture. The
+  latest alternate-method link remains unpaid; no new capture is claimed.
+- [ ] Add merchant-approved invoice mapping across distinct original orders and
+  agreed consent/refund/dispute workflows.
+- [ ] Add job-progress monitoring, deployment alerts and hosted recovery procedures.
 - [ ] Select a willing merchant, validate the need and agree on a supervised pilot.
 - [ ] Deploy with reviewed HTTPS, access controls, operational ownership and budget.
 
@@ -235,7 +246,7 @@ Only Test Mode data is available; synthetic evidence remains labeled throughout.
 
 ## Resume claims supported today
 
-Describe a tested **Razorpay test-mode revenue recovery prototype** combining
+Describe a tested **Razorpay Test Mode payment-recovery application** combining
 FastAPI, SQLAlchemy, Streamlit, logistic regression, deterministic policies, and
 database-backed duplicate prevention. Cite the grouped synthetic benchmark and
 its limitations. Do not describe synthetic revenue as merchant revenue, a test
