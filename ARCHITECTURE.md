@@ -218,3 +218,13 @@ Dashboard approval history reads executed Action rows and the exact
 RecoveryExecution-to-audit binding. The original manual recommendation is not
 presented as the approved choice. Unbound legacy history is labeled unavailable
 rather than borrowing another approval's provider resource.
+
+
+Reviewed resumption also supports one exactly attributed first retry order that
+is freshly verified created, entirely unpaid and never attempted. It requires a
+known original order freshly open, no unresolved intent/outcome/review, and a
+fresh stop check. It only returns observation to awaiting_outcome; it does not
+create another resource or reset an active processing claim. See OPERATIONS.md.
+Provider GET requests retry a transient connection failure once; writes are not
+retried. Only an initial payment-read failure before ingestion becomes a replayable
+webhook error. Errors after possible recovery side effects stay held.

@@ -98,11 +98,13 @@ exact execution attribution and order-level totals guard against misleading
 results. These controls do not make separate provider orders for one merchant
 invoice identical or eliminate external payment races.
 
-The current local suite passes **604 tests**. Versioned migrations, an isolated
+The current local suite passes **645 tests**. Versioned migrations, an isolated
 backup restore drill, bounded webhook input and private service supervision are
 implemented. A fresh alternate-method payment was captured and reconciled on
 10 November; the successful retry popup path and a real merchant pilot remain
-outstanding. See [verification](TEST_MODE_VERIFICATION.md),
+outstanding. Feature additions are paused for the resume/demo wrap-up; the unverified
+retry path is documented rather than treated as a blocker requiring repeated
+manual payments. See [verification](TEST_MODE_VERIFICATION.md),
 [operations](OPERATIONS.md) and [architecture](ARCHITECTURE.md).
 
 ## Fresh Windows setup
@@ -408,3 +410,11 @@ Partial or inconsistent paid amounts block further collection for reconciliation
 including expired/cancelled legacy links. New links explicitly disable partial
 payments. The system does not automatically collect the full original amount
 again after observing a partial payment, or issue refunds.
+
+
+## Present the project
+
+Use the [interview guide](INTERVIEW_GUIDE.md) for a short explanation, defensible
+resume bullets, a demo using recorded evidence and answers about design tradeoffs.
+It distinguishes actual Test Mode captures, isolated simulation and unverified
+acceptance paths. No additional checkout is required to use this material.

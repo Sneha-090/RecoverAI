@@ -23,7 +23,7 @@ failure-to-recovery flow. See [the test record](TEST_MODE_VERIFICATION.md).
   Old failures cannot advance a newer attempt; outcomes are unique per execution.
 - Concurrent request, approval, observation, timeout, and persistence-failure
   regression tests. Total local suite including authentication coverage:
-  604 passing local tests, including original-order ownership, persistent stops, isolated backup restore, bounded webhooks, authenticated checkout and exact approval-history attribution.
+  645 passing local tests, including original-order ownership, persistent stops, isolated backup restore, bounded webhooks, authenticated checkout and exact approval-history attribution.
 - A public webhook-only gateway excludes operator APIs, checkout, documentation,
   and configuration paths. Local HTTP checks cover valid/invalid signatures,
   processing a replay of an old failed test payment, and duplicate rejection
@@ -221,9 +221,11 @@ have already been inspected and cannot serve as a fresh blind merchant audit.
 
 ## Active direction: prepare a supervised single-merchant pilot
 
-Continue hardening the product rather than freezing feature development. The first
-recommended segment is a small online-course/adult skill-training business with
-one-time INR fees. See [pilot plan](PILOT_PLAN.md) for the scope, acceptance gates
+The current resume/demo scope is frozen after the verified safeguards and fixes.
+Use the recorded evidence and interview guide; further manual acceptance of the
+retry popup is deferred. Future merchant-pilot work remains a separate phase.
+The first recommended segment is a small online-course/adult skill-training
+business with one-time INR fees. See [pilot plan](PILOT_PLAN.md) for the scope, acceptance gates
 and measurements. No real merchant or approved live dataset is available yet.
 
 Next work in order:
@@ -236,7 +238,8 @@ Next work in order:
   approval. Show only the actual approved action and its exact audit resource.
 - [x] Verify a fresh alternate-method capture, reviewed settlement and processed
   signed capture event. Test totals are three recovered orders / INR 1,497.
-- [ ] Complete a fresh successful hosted retry popup flow in a supported browser.
+- [ ] Deferred: a fresh successful hosted retry popup capture remains unverified;
+  the unused Test case was operator-stopped rather than asking for more repetitions.
 - [ ] Add merchant-approved invoice mapping across distinct original orders and
   agreed consent/refund/dispute workflows.
 - [ ] Add job-progress monitoring, deployment alerts and hosted recovery procedures.

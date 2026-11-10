@@ -275,3 +275,46 @@ remains the same version covered by the full 604-test run; only documentation
 was updated for the new provider-origin Test evidence. A sanitized private JSON
 snapshot is retained under ignored D-drive `var/acceptance-capture-20261110.json`;
 no contacts, credentials or database files are committed.
+
+
+## 10 November: retry acceptance stopped after reliability fixes
+
+One new INR 499 original Test order `order_TyJpGKJxSuRNuR` was prepared. The owner
+selected mock Failure, producing `pay_TyJtookFQK6rBl`, provider status failed,
+method card, reason payment_failed. Signed event `TyJu8r7VBnTIlN` reached the inbox,
+but its initial provider payment GET raised requests.ConnectionError before any
+Payment or recovery execution was stored. It was held for reconciliation.
+
+Fresh provider data was imported through the existing operator workflow without
+resetting that event. Unclassified failure required manual assessment. Explicit
+retry approval created exactly one order `order_TyJz1b0VF7c7dS` and execution 4.
+The browser's checkout-config GET also encountered a provider connection reset,
+and the old polling worker held the case after another read failure.
+
+The transport now retries only GET connection/timeout failures once. Provider
+writes remain single-attempt. Exhausted private reads return sanitized 503. A
+typed initial payment lookup failure retains future signed events for bounded
+replay only before ingestion mutations. Existing held events are not reset.
+The complete suite passed 620 tests for this fix (commit 387d5e8).
+
+A separate reviewed-resumption control freshly verified the one saved retry was
+created, unpaid, never attempted, correctly attributed and backed by an open
+original order. It resumed observation without creating an order. Tests cover
+competing reviewers, ambiguous history, original success, partial/paid/attempted
+resources, unresolved intent/outcome and stops recorded during provider reads.
+The idle owned polling interpreter was reloaded to use the read-connection fix.
+The expanded complete suite passed **645 tests**, including authenticated AppTest;
+all six isolated offline scenarios passed with refreshed source fingerprints.
+
+At wrap-up, the provider retry still showed created, zero paid and zero attempts.
+The repetitive manual acceptance exercise was ended. Existing operator-stop
+handling closed this unused local case as closed_unrecovered, recorded operator_stop
+and released its waiting claim. The external order was not cancelled; no additional
+payment or refund was issued. The held original failure event remains saved for
+investigation, without a force replay or claim reset. A successful capture on this
+fresh retry path remains **unverified**, and is not included in recovery claims.
+
+The local Test database now has five tracked original-order cases, three recovered
+groups and INR 1,497.00 verified Test Mode recovery. No real merchant revenue is
+represented. Further feature additions/manual payments are paused for the resume,
+recorded demo and interview wrap-up; merchant-pilot gates remain in PILOT_PLAN.md.
