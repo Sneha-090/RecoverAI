@@ -4,8 +4,13 @@ from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session
 
-from app.services.razorpay_client import client
+from app.services.razorpay_client import client, ProviderReadUnavailable
+from requests.exceptions import ConnectionError, Timeout
 from app.models.models import Payment, Customer
+
+
+class PaymentLookupUnavailable(ProviderReadUnavailable):
+    """The initial provider GET failed before any local payment mutation."""
 
 
 def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
@@ -14,7 +19,10 @@ def fetch_and_store_payment(db: Session, payment_id: str) -> Payment:
     upserts it into the payments table with its real error_code,
     error_reason, and state.
     """
-    rp_payment = client.payment.fetch(payment_id)
+    try:
+        rp_payment = client.payment.fetch(payment_id)
+    except (ProviderReadUnavailable, ConnectionError, Timeout) as error:
+        raise PaymentLookupUnavailable('Payment lookup temporarily unavailable before ingestion') from error
 
     existing = (
         db.query(Payment)

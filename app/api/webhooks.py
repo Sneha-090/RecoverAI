@@ -17,7 +17,7 @@ from app.models.models import (
 )
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action, observe_outcome
-from app.services.ingestion import fetch_and_store_payment
+from app.services.ingestion import fetch_and_store_payment, PaymentLookupUnavailable
 from app.services.reservations import reserve_webhook, finish_webhook, RecoveryInProgress
 from app.services.webhook_inbox import (
     remember_verified_event, mark_inbox_claimed, unpersisted_recovery_intent,
@@ -555,6 +555,11 @@ def process_verified_webhook(db, payload, razorpay_event_id):
             "executed": result["executed"],
         }
 
+    except PaymentLookupUnavailable:
+        db.rollback()
+        receipt_state = "retryable"
+        raise HTTPException(status_code=503, detail="Payment lookup temporarily unavailable; verified event retained for replay",
+                            headers={"Retry-After": "30"}) from None
     except EventNotReady:
         db.rollback()
         receipt_state = "waiting_for_execution"

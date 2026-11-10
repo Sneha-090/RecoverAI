@@ -14,12 +14,19 @@ from app.config import settings
 from app.db.session import SessionLocal
 from app.services.ml_service import predict_recovery, UnsupportedRecoveryCause
 from app.services.order_service import create_test_order
+from app.services.razorpay_client import ProviderReadUnavailable
 from app.services.ingestion import fetch_and_store_payment
 from app.services.diagnosis import diagnose_and_store
 from app.services.execution import execute_action
 
 app = FastAPI(title="RecoverAI")
 app.include_router(webhook_router)
+
+
+@app.exception_handler(ProviderReadUnavailable)
+async def provider_read_unavailable(request: Request, error: ProviderReadUnavailable):
+    return JSONResponse(status_code=503, headers={"Retry-After": "30"},
+                        content={"detail": "Provider lookup temporarily unavailable; check the existing order or case before continuing"})
 
 app.add_middleware(
     CORSMiddleware,

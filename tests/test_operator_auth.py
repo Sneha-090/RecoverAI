@@ -165,3 +165,12 @@ def test_untrained_prediction_returns_actionable_validation_error(client, operat
         'past_rate':.5,'action_type':'payment_link'})
     assert response.status_code == 422
     assert 'manual assessment' in response.json()['detail']
+
+
+
+def test_checkout_provider_read_failure_returns_sanitized_service_unavailable(client,operator,monkeypatch):
+    from app.services.razorpay_client import ProviderReadUnavailable
+    monkeypatch.setattr('app.services.operator_checkout.client.order.fetch',Mock(side_effect=ProviderReadUnavailable('PRIVATE_RESPONSE')))
+    response=client.get('/checkout-config?order_id=order_readFailure',auth=operator)
+    assert response.status_code==503 and response.headers['retry-after']=='30'
+    assert 'PRIVATE_RESPONSE' not in response.text and 'Provider lookup temporarily unavailable' in response.text

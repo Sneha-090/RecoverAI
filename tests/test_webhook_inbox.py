@@ -326,3 +326,35 @@ def test_invalid_event_type_is_rejected(inbox):
     assert deliver(client, {'event': []}).status_code == 400
     with factory() as db:
         assert db.query(WebhookInbox).count() == 0
+
+
+
+@pytest.mark.parametrize('error_type',['ConnectionError','ReadTimeout'])
+def test_initial_payment_read_failure_replays_without_creation_or_claim_reset(inbox,monkeypatch,error_type):
+    import requests
+    from app.models.models import Diagnosis
+    factory,transport=inbox
+    fetch=Mock(side_effect=getattr(requests.exceptions,error_type)('PRIVATE_RESPONSE'))
+    monkeypatch.setattr('app.services.ingestion.client.payment.fetch',fetch)
+    execute=Mock(return_value={'chosen_action':None,'decision_type':'skip','executed':False})
+    monkeypatch.setattr('app.api.webhooks.execute_action',execute)
+    response=deliver(transport,event_body(event='payment.failed'))
+    assert response.status_code==503 and response.headers['retry-after']=='30'
+    assert 'PRIVATE_RESPONSE' not in response.text
+    execute.assert_not_called()
+    with factory() as db:
+        assert db.get(WebhookInbox,'evt_early').state=='retryable'
+        assert db.get(WebhookReceipt,'evt_early').state=='retryable'
+        assert db.query(Payment).count()==db.query(Action).count()==db.query(RecoveryIntent).count()==0
+        assert db.query(RecoveryReservation).count()==db.query(Outcome).count()==0
+    fetch.side_effect=None
+    fetch.return_value={'id':'pay_provider','order_id':'order_early','amount':49900,'currency':'INR',
+                        'status':'failed','method':'card','error_reason':'payment_failed'}
+    result=replay_batch(event_id='evt_early',session_factory=factory)
+    assert result['processed']==1 and result['errors']==0
+    assert replay_batch(event_id='evt_early',session_factory=factory)['selected']==0
+    assert execute.call_count==1
+    with factory() as db:
+        assert db.get(WebhookInbox,'evt_early').state=='processed'
+        assert db.query(Payment).count()==db.query(Diagnosis).count()==1
+        assert db.query(RecoveryIntent).count()==db.query(RecoveryReservation).count()==db.query(Outcome).count()==0

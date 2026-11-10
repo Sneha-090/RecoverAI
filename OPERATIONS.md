@@ -196,3 +196,19 @@ with operator audit. It never invokes ML selection or a provider creation endpoi
 A separate approval must choose an untried eligible action. Competing operators
 create at most one review. General stale processing-claim crash recovery remains
 unsupported; this is not a force-retry or claim-expiry control.
+
+
+## Transient provider reads
+
+The Test-only provider transport retries a failed GET once on connection reset
+or timeout (at most two GET attempts, each retaining its connect/read timeout).
+POST, PUT, PATCH and DELETE calls are never retried by this transport. A missing
+creation response still requires reconciliation; this change does not authorize
+a second creation.
+
+If the initial payment GET fails before ingestion writes anything, a typed
+read-unavailable result keeps the signed webhook retryable with bounded existing
+backoff. Other failures, including errors after recovery side effects, remain
+held. Already-held events and active claims are not reset by this change. Private
+read endpoints return sanitized HTTP 503 and the checkout retains an instruction
+to use the existing order ID rather than create another order.

@@ -34,3 +34,38 @@ def test_transport_rechecks_configuration_before_sending_cached_sdk_auth(monkeyp
     with pytest.raises(ProviderModeError):
         BoundedProviderSession().request('POST','https://api.razorpay.com/v1/orders',auth=('rzp_test_cached','private'))
     underlying.assert_not_called()
+
+
+
+@pytest.mark.parametrize('error_type', ['ConnectionError', 'ReadTimeout'])
+def test_provider_get_retries_one_connection_failure(monkeypatch,error_type):
+    import requests
+    error=getattr(requests.exceptions,error_type)('private connection detail')
+    response=Mock()
+    send=Mock(side_effect=[error,response])
+    monkeypatch.setattr('requests.Session.request',send)
+    result=BoundedProviderSession().request('GET','https://api.razorpay.com/v1/orders/order_test',auth=('rzp_test_fixture','private'))
+    assert result is response and send.call_count==2
+    assert all(call.kwargs['timeout']==(5,20) for call in send.call_args_list)
+
+
+def test_provider_get_stops_after_two_failed_reads(monkeypatch):
+    import requests
+    from app.services.razorpay_client import ProviderReadUnavailable
+    send=Mock(side_effect=requests.ConnectionError('PRIVATE_NETWORK_DETAIL'))
+    monkeypatch.setattr('requests.Session.request',send)
+    with pytest.raises(ProviderReadUnavailable) as caught:
+        BoundedProviderSession().request('GET','https://api.razorpay.com/v1/orders/order_test',auth=('rzp_test_fixture','private'))
+    assert send.call_count==2 and 'PRIVATE_NETWORK_DETAIL' not in str(caught.value)
+
+
+@pytest.mark.parametrize('method',['POST','PATCH','DELETE','PUT'])
+@pytest.mark.parametrize('error_type',['ConnectionError','ReadTimeout'])
+def test_provider_write_is_never_retried_on_network_failure(monkeypatch,method,error_type):
+    import requests
+    error=getattr(requests.exceptions,error_type)
+    send=Mock(side_effect=error('uncertain write'))
+    monkeypatch.setattr('requests.Session.request',send)
+    with pytest.raises(error):
+        BoundedProviderSession().request(method,'https://api.razorpay.com/v1/orders',auth=('rzp_test_fixture','private'))
+    assert send.call_count==1

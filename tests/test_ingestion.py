@@ -107,3 +107,18 @@ def test_old_provider_payment_does_not_get_a_fresh_recovery_window(
 
     assert payment.created_at == datetime.utcfromtimestamp(timestamp)
     assert is_recovery_eligible(payment)[0] is False
+
+
+
+@pytest.mark.parametrize('error_type',['ConnectionError','ReadTimeout'])
+def test_payment_lookup_failure_is_typed_before_database_changes(db_session,monkeypatch,error_type):
+    import requests
+    from unittest.mock import Mock
+    from app.services.ingestion import PaymentLookupUnavailable
+    from app.models.models import Customer
+    fetch=Mock(side_effect=getattr(requests.exceptions,error_type)('PRIVATE_RESPONSE'))
+    monkeypatch.setattr('app.services.ingestion.client.payment.fetch',fetch)
+    with pytest.raises(PaymentLookupUnavailable) as caught:
+        fetch_and_store_payment(db_session,'pay_read_failure')
+    assert 'PRIVATE_RESPONSE' not in str(caught.value)
+    assert db_session.query(Payment).count()==db_session.query(Customer).count()==0
