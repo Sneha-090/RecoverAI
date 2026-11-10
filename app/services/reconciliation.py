@@ -221,3 +221,70 @@ def return_verified_failure_to_review(db,payment_id,reference_key,operator_usern
         db.rollback();return {'status':'blocked','reason':'Verification unavailable or changed; case remains blocked and no new payment was requested'}
     finally:
         finish_recovery(db,payment_id,owner,next_state)
+
+
+
+def resume_unattempted_retry(db, payment_id, reference_key, operator_username):
+    """Explicit review of one issued retry order; never recreate or charge anything."""
+    from app.config import settings
+    from app.models.models import Outcome
+    from app.services.eligibility import is_recovery_eligible
+    from app.services.original_orders import original_order_eligibility, read_original_order
+    if (not settings.razorpay_key_id.startswith('rzp_test_') or not isinstance(operator_username, str)
+            or not operator_username.strip() or len(operator_username) > 64):
+        return {'status': 'blocked', 'reason': 'Authenticated Test Mode operator required'}
+    owner = uuid4().hex
+    changed = db.query(RecoveryReservation).filter_by(payment_id=payment_id, state='needs_reconciliation').update(
+        {'owner': owner, 'state': 'processing', 'updated_at': datetime.utcnow()})
+    db.commit()
+    if not changed:
+        return {'status': 'blocked', 'reason': 'Case is active or no longer awaiting reconciliation'}
+    next_state = 'needs_reconciliation'
+    try:
+        db.expire_all()
+        payment, reference, provider_id = _reference(db, payment_id, reference_key)
+        executions = db.query(RecoveryExecution).filter_by(payment_id=payment_id).all()
+        actions = db.query(Action).filter_by(payment_id=payment_id, decision_type=DecisionType.auto).all()
+        if (not isinstance(reference, RecoveryExecution) or reference.provider_type != 'order'
+                or len(executions) != 1 or executions[0].id != reference.id
+                or len(actions) != 1 or actions[0].id != reference.action_id or actions[0].action_type != 'retry'):
+            raise ReconciliationError('Only one exactly attributed first retry order can resume; ambiguous history stays blocked')
+        if (not payment.order_id or not is_recovery_eligible(payment)[0]
+                or not original_order_eligibility(db, payment)[0]):
+            raise ReconciliationError('Case is stopped, closed or has no verified original order')
+        if (db.query(Outcome).filter_by(payment_id=payment_id).first()
+                or db.query(Action).filter_by(payment_id=payment_id, review_status='pending').first()
+                or db.query(RecoveryIntent).filter(RecoveryIntent.payment_id == payment_id,
+                    RecoveryIntent.execution_id.is_(None), RecoveryIntent.state != 'cancelled_before_creation').first()):
+            raise ReconciliationError('Unresolved outcome, review or creation intent requires investigation')
+        order = client.order.fetch(provider_id)
+        if (not isinstance(order, dict) or order.get('id') != provider_id or order.get('status') != 'created'
+                or type(order.get('amount')) is not int or order['amount'] != reference.amount_paise
+                or order.get('currency') != reference.currency or reference.currency != 'INR'
+                or type(order.get('amount_paid')) is not int or order['amount_paid'] != 0
+                or type(order.get('amount_due')) is not int or order['amount_due'] != reference.amount_paise
+                or type(order.get('attempts')) is not int or order['attempts'] != 0):
+            raise ReconciliationError('Retry must be exactly matched, completely unpaid and never attempted')
+        attempts = client.order.payments(provider_id)
+        if (not isinstance(attempts, dict) or attempts.get('items') != []
+                or type(attempts.get('items')) is not list
+                or type(attempts.get('count', 0)) is not int or attempts.get('count', 0) != 0):
+            raise ReconciliationError('Any payment attempt or inconsistent history prevents resumption')
+        if read_original_order(payment)['status'] != 'open':
+            raise ReconciliationError('Original order is not verified open')
+        db.refresh(payment)
+        if not is_recovery_eligible(payment)[0] or not original_order_eligibility(db, payment)[0]:
+            raise ReconciliationError('Case eligibility changed during review')
+        db.add(AuditLog(payment_id=payment_id, event_type='unattempted_retry_resumed',
+            reason='Operator verified one unpaid, never-attempted retry and resumed observation; no provider creation',
+            payload_json=json.dumps({'operator': operator_username, 'execution_id': reference.id, 'provider_id': provider_id})))
+        next_state = 'awaiting_outcome'
+        return {'status': 'awaiting_outcome', 'execution_id': reference.id, 'provider_id': provider_id}
+    except ReconciliationError as error:
+        db.rollback()
+        return {'status': 'blocked', 'reason': str(error)}
+    except Exception:
+        db.rollback()
+        return {'status': 'blocked', 'reason': 'Verification unavailable; case remains blocked and no payment request was sent'}
+    finally:
+        finish_recovery(db, payment_id, owner, next_state)

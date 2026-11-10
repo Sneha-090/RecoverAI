@@ -402,3 +402,26 @@ def test_approved_history_shows_executed_override_and_its_own_audit(review_ui):
     assert any('Exact execution audit is unavailable' in item.value for item in tab.caption)
     assert any(item.value == 'Recent approved executions' for item in tab.subheader)
     assert not any('this session' in item.value for item in tab.caption)
+
+
+
+def test_operator_can_resume_only_verified_unattempted_retry_order(review_ui, monkeypatch):
+    with review_ui() as db:
+        payment=Payment(payment_id='pay_ui_resume',order_id='order_original',amount=499,status='failed',razorpay_state='failed')
+        action=Action(payment_id=payment.payment_id,action_type='retry',decision_type='auto')
+        payload={'type':'order','order_id':'order_ui_resume'}
+        audit=AuditLog(payment_id=payment.payment_id,event_type='executed',payload_json=json.dumps(payload))
+        db.add_all([payment,action,audit]);db.flush();record_execution(db,payment,action,audit,payload)
+        db.add(RecoveryReservation(payment_id=payment.payment_id,owner='old',state='needs_reconciliation'));db.commit()
+    monkeypatch.setattr('app.services.reconciliation.client.order.fetch',lambda _: {'id':'order_ui_resume','status':'created',
+        'amount':49900,'currency':'INR','amount_paid':0,'amount_due':49900,'attempts':0})
+    monkeypatch.setattr('app.services.reconciliation.client.order.payments',lambda _: {'count':0,'items':[]})
+    monkeypatch.setattr('app.services.original_orders.read_original_order',lambda _: {'status':'open'})
+    app=login(AppTest.from_string(REVIEW_APP).run())
+    app.button(key='reconciliation_check').click().run(timeout=20)
+    assert not app.exception and not app.button(key='reconciliation_resume_unattempted').disabled
+    app.button(key='reconciliation_resume_unattempted').click().run(timeout=20)
+    assert not app.exception
+    with review_ui() as db:
+        assert db.get(RecoveryReservation,'pay_ui_resume').state=='awaiting_outcome'
+        assert db.query(Action).count()==1 and db.query(Outcome).count()==0

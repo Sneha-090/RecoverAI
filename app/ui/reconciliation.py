@@ -4,7 +4,7 @@ import streamlit as st
 
 from app.models.models import WebhookInbox
 from app.services.reconciliation import (list_stuck_cases, reconciliation_references,
-    check_reconciliation_status, reconcile_verified_success, ReconciliationError, return_verified_failure_to_review)
+    check_reconciliation_status, reconcile_verified_success, ReconciliationError, return_verified_failure_to_review, resume_unattempted_retry)
 
 
 def render_reconciliation(db, operator_username):
@@ -69,6 +69,16 @@ def render_reconciliation(db, operator_username):
                         st.info("Payment is still pending. The case remains blocked.")
                     else:
                         st.warning("No successful recovery was found. The case remains blocked.")
+                    if evidence['result'] == 'pending' and reference['kind'] == 'order':
+                        st.caption('Resume only one saved first retry after fresh checks prove it is unpaid, never attempted and the original order is open. No new order is created.')
+                        if st.button('Resume verified unattempted retry', key='reconciliation_resume_unattempted', disabled=active):
+                            result = resume_unattempted_retry(db, payment_id, key, operator_username)
+                            st.session_state.pop('reconciliation_evidence', None)
+                            if result['status'] == 'awaiting_outcome':
+                                st.session_state['reconciliation_flash'] = 'Existing unattempted retry is active again. No new order or payment was created.'
+                                st.rerun()
+                            else:
+                                st.warning(result['reason'])
                     if evidence['result']=='failed':
                         st.caption('Re-check all known executions and the original order, then return a verified failure to manual review. This control cannot create a checkout or authorize an automatic retry.')
                         if st.button('Return verified failure to manual review',key='reconciliation_failed_review',disabled=active):

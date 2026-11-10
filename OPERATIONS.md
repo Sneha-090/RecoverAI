@@ -212,3 +212,21 @@ backoff. Other failures, including errors after recovery side effects, remain
 held. Already-held events and active claims are not reset by this change. Private
 read endpoints return sanitized HTTP 503 and the checkout retains an instruction
 to use the existing order ID rather than create another order.
+
+
+## Resume one saved, never-attempted retry
+
+Recovery Review offers an explicit resumption control after a pending-order
+status check. It claims only `needs_reconciliation`, and requires exactly one
+attributed executed retry, a known original order freshly verified open, no
+outcomes, pending review or unresolved creation intent, and no recorded stop.
+The stored retry must match ID/INR amount/currency, have status `created`, zero
+paid, the full amount due, zero attempts and an independently empty payment list.
+A stop recorded during the provider reads is checked again before resumption.
+
+The control records the operator and returns observation to `awaiting_outcome`;
+it does not create an order, execute a debit, call ML, replay a held event or
+force a processing claim. Multiple executions, any payment attempt, partial/paid
+resources and uncertain evidence remain blocked. This narrow review does not
+provide general stale-claim crash recovery or guarantee an already shared
+checkout cannot be paid during a verification race.
