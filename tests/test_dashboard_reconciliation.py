@@ -362,3 +362,43 @@ def test_operator_can_return_verified_failed_execution_to_review_without_new_che
         assert db.get(RecoveryReservation,'pay_ui').state=='pending_review'
         assert db.query(Action).filter_by(payment_id='pay_ui',review_status='pending').one().action_type=='manual_assessment'
     create.assert_not_called()
+
+
+
+def test_approved_history_shows_executed_override_and_its_own_audit(review_ui):
+    with review_ui() as db:
+        payment = Payment(payment_id='pay_history', amount=499, status='failed')
+        db.add(payment)
+        now = datetime.utcnow()
+        db.add(Action(payment_id=payment.payment_id, action_type='manual_assessment',
+                      decision_type='human_review', review_status='actioned', chosen_at=now))
+        for i, action_type in enumerate(['retry', 'alt_method']):
+            payload = ({'type': 'order', 'order_id': 'order_history'} if i == 0 else
+                       {'type': 'payment_link', 'payment_link_id': 'plink_history'})
+            action = Action(payment_id=payment.payment_id, action_type=action_type,
+                            decision_type='auto', chosen_at=now + timedelta(seconds=i),
+                            reason='human-approved action (original ML recommendation: manual_assessment)')
+            audit = AuditLog(payment_id=payment.payment_id, event_type='human_approved_executed',
+                             timestamp=now + timedelta(seconds=i), payload_json=json.dumps(payload))
+            db.add_all([action, audit]); db.flush()
+            record_execution(db, payment, action, audit, payload)
+        # A legacy executed action has no exact binding. It must not borrow the latest audit.
+        db.add(Action(payment_id=payment.payment_id, action_type='payment_link', decision_type='auto',
+                      chosen_at=now + timedelta(seconds=2), reason='human-approved action (legacy)'))
+        db.commit()
+    app = login(AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'dashboard.py')).run(timeout=25))
+    assert not app.exception
+    tab = next(tab for tab in app.tabs if tab.label == 'Human Review')
+    labels = [item.value for item in tab.markdown if 'human-approved:' in item.value]
+    assert labels == [
+        '**pay_history** — human-approved: **payment_link**',
+        '**pay_history** — human-approved: **alt_method**',
+        '**pay_history** — human-approved: **retry**',
+    ]
+    assert [json.loads(item.value) for item in tab.code] == [
+        {'type': 'payment_link', 'payment_link_id': 'plink_history'},
+        {'type': 'order', 'order_id': 'order_history'},
+    ]
+    assert any('Exact execution audit is unavailable' in item.value for item in tab.caption)
+    assert any(item.value == 'Recent approved executions' for item in tab.subheader)
+    assert not any('this session' in item.value for item in tab.caption)

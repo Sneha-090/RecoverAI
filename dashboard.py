@@ -23,6 +23,7 @@ from app.models.models import (
     RecoveryScore,
     ReviewStatus,
     RecoveryReservation,
+    RecoveryExecution,
     OriginalOrderRecovery,
 )
 from app.services.execution import human_review_action
@@ -566,63 +567,37 @@ with tab_review:
 
     st.divider()
 
-    st.subheader(
-        "Recently Approved (this session)"
-    )
+    st.subheader("Recent approved executions")
+    st.caption("Latest five recorded executions across sessions; recommendations are shown separately above.")
 
     recently_approved = (
         db.query(Action)
         .filter(
-            Action.decision_type
-            == DecisionType.human_review,
-            Action.review_status
-            == ReviewStatus.actioned,
+            Action.decision_type == DecisionType.auto,
+            Action.reason.startswith("human-approved action"),
         )
-        .order_by(
-            Action.chosen_at.desc()
-        )
+        .order_by(Action.chosen_at.desc(), Action.id.desc())
         .limit(5)
         .all()
     )
 
     if not recently_approved:
-
-        st.caption(
-            "No approvals yet this session."
-        )
-
+        st.caption("No approved executions recorded yet.")
     else:
-
         for action in recently_approved:
-
-            audit_entry = (
-                db.query(AuditLog)
-                .filter(
-                    AuditLog.payment_id
-                    == action.payment_id,
-                    AuditLog.event_type
-                    == "human_approved_executed",
-                )
-                .order_by(
-                    AuditLog.timestamp.desc()
-                )
-                .first()
-            )
-
+            execution = db.query(RecoveryExecution).filter_by(
+                action_id=action.id, payment_id=action.payment_id,
+            ).first()
+            audit_entry = db.get(AuditLog, execution.audit_id) if execution else None
             with st.container(border=True):
-
                 st.write(
-                    f"**{action.payment_id}** — "
-                    f"human-approved: "
-                    f"**{action.action_type}**"
+                    f"**{action.payment_id}** — human-approved: **{action.action_type}**"
                 )
-
-                if audit_entry:
-
-                    st.code(
-                        audit_entry.payload_json,
-                        language="json",
-                    )
+                if (audit_entry and audit_entry.payment_id == action.payment_id
+                        and audit_entry.event_type == "human_approved_executed"):
+                    st.code(audit_entry.payload_json, language="json")
+                else:
+                    st.caption("Exact execution audit is unavailable; no other checkout is substituted.")
 
 
 # =====================================================
