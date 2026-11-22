@@ -14,6 +14,8 @@ The next target is a supervised single-merchant pilot for an online-course or
 adult skill-training business. See the [pilot plan](PILOT_PLAN.md) for the
 recommended scope, remaining collection-safety gaps and success measurements.
 
+For a complete Hinglish explanation, safe runbook, stack syllabus and future-agent prompt, read the [single-file handover](RECOVERAI_COMPLETE_HANDOVER_HINGLISH.md).
+
 ## Evidence you can reproduce
 
 | Evidence | What it establishes | What it does not establish |
